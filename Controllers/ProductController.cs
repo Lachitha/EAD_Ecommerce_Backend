@@ -38,7 +38,12 @@ namespace MongoDbConsoleApp.Controllers
                 return BadRequest("Quantity must be greater than zero.");
             }
 
+            // Automatically set the initial stock to be equal to the product's quantity
+            product.Stock = product.Quantity;
+
+            // Create the product in the database
             await _productService.CreateProductAsync(product);
+
             return Ok(new { message = "Product created successfully.", productId = product.Id });
         }
 
@@ -58,6 +63,35 @@ namespace MongoDbConsoleApp.Controllers
         }
 
         [Authorize(Roles = "Vendor")]
+        [HttpPut("{id}/stock")]
+        public async Task<IActionResult> UpdateStock(string id, [FromBody] int quantityChange)
+        {
+            var product = await _productService.GetProductByIdAsync(id);
+            if (product == null)
+            {
+                return NotFound("Product not found.");
+            }
+
+            // Update the stock based on quantity change
+            if (product.Stock + quantityChange < 0)
+            {
+                return BadRequest("Cannot reduce stock below zero.");
+            }
+
+            product.Stock += quantityChange;
+            await _productService.UpdateProductStockAsync(id, product.Stock);
+
+            // Check for low stock
+            if (product.Stock < product.LowStockThreshold)
+            {
+                // Notify vendor (placeholder for notification logic)
+                return Ok(new { message = "Stock updated successfully.", lowStockAlert = "Product is below the low stock threshold!" });
+            }
+
+            return Ok(new { message = "Stock updated successfully." });
+        }
+
+        [Authorize(Roles = "Vendor")]
         [HttpDelete("{id}")]
         public async Task<IActionResult> DeleteProduct(string id)
         {
@@ -71,7 +105,7 @@ namespace MongoDbConsoleApp.Controllers
             return Ok(new { message = "Product deleted successfully." });
         }
 
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Administrator")]
         [HttpPut("activate/{id}")]
         public async Task<IActionResult> ActivateProduct(string id)
         {
@@ -79,7 +113,7 @@ namespace MongoDbConsoleApp.Controllers
             return Ok(new { message = "Product activated successfully." });
         }
 
-        [Authorize(Roles = "Admin")]
+        [Authorize(Roles = "Administrator")]
         [HttpPut("deactivate/{id}")]
         public async Task<IActionResult> DeactivateProduct(string id)
         {

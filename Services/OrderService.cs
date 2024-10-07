@@ -1,5 +1,6 @@
 using MongoDB.Driver;
 using MongoDbConsoleApp.Models;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -17,10 +18,10 @@ namespace MongoDbConsoleApp.Services
             _productCollection = mongoDbService.GetCollection<Product>("Products");
         }
 
-        // Create a new order
+        // Create a new order and reduce stock
         public async Task<Order> CreateOrderAsync(Order order)
         {
-            // Validate if all products are active before creating the order
+            // Validate if all products are active and have enough stock
             foreach (var item in order.Items)
             {
                 var product = await _productCollection.Find(p => p.Id == item.ProductId).FirstOrDefaultAsync();
@@ -28,8 +29,20 @@ namespace MongoDbConsoleApp.Services
                 {
                     throw new InvalidOperationException($"Product {item.ProductId} is not available.");
                 }
+
+                // Check if stock is sufficient
+                if (product.Stock < item.Quantity)
+                {
+                    throw new InvalidOperationException($"Insufficient stock for product {product.Name}.");
+                }
+
+                // Reduce stock
+                product.Stock -= item.Quantity;
+                var update = Builders<Product>.Update.Set(p => p.Stock, product.Stock);
+                await _productCollection.UpdateOneAsync(p => p.Id == product.Id, update);
             }
 
+            // Insert the new order after stock adjustment
             await _orderCollection.InsertOneAsync(order);
             return order;
         }

@@ -46,6 +46,14 @@ namespace MongoDbConsoleApp.Services
                 throw new KeyNotFoundException($"No product found with ID: {id}");
         }
 
+        public async Task UpdateProductStockAsync(string id, int newStock)
+        {
+            var update = Builders<Product>.Update.Set(p => p.Stock, newStock);
+            var result = await _products.UpdateOneAsync(p => p.Id == id, update);
+            if (result.ModifiedCount == 0)
+                throw new KeyNotFoundException($"No product found with ID: {id}");
+        }
+
         public async Task DeleteProductAsync(string id)
         {
             if (string.IsNullOrEmpty(id))

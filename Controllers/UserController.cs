@@ -128,5 +128,32 @@ namespace MongoDbConsoleApp.Controllers
             await _userService.DeleteUserAsync(userId);
             return Ok(new { message = "User deleted successfully." });
         }
+
+        // Get logged-in user details
+        [Authorize]
+        [HttpGet("me")]
+        public async Task<IActionResult> GetUserDetails()
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized("Invalid token.");
+            }
+
+            var existingUser = await _userService.FindByIdAsync(userId);
+            if (existingUser == null)
+            {
+                return NotFound("User not found.");
+            }
+
+            var userDetails = new
+            {
+                existingUser.Username,
+                existingUser.Role,
+                existingUser.Email
+            };
+
+            return Ok(userDetails);
+        }
     }
 }

@@ -17,7 +17,11 @@ namespace MongoDbConsoleApp.Models
 
         public int Quantity { get; set; } // New property for product quantity
 
+        public int Stock { get; set; } // Stock will be managed automatically based on quantity
+
         public bool IsActive { get; set; } = false; // To activate/deactivate the product
+
+        public int LowStockThreshold { get; set; } // Alert vendor if stock goes below this threshold
 
         public string VendorId { get; set; } = string.Empty; // Associate product with a vendor
     }
