@@ -35,6 +35,18 @@ namespace MongoDbConsoleApp.Controllers
                 return Unauthorized("User not authenticated.");
             }
 
+            // Retrieve VendorIds for each product and assign them to the order items
+            foreach (var item in order.Items)
+            {
+                var product = await _orderService.GetProductByIdAsync(item.ProductId); // Assume GetProductByIdAsync fetches a product by its ID
+                if (product == null)
+                {
+                    return NotFound($"Product not found with ID: {item.ProductId}");
+                }
+
+                item.VendorId = product.VendorId; // Assign VendorId from the product
+            }
+
             order.UserId = userId; // Set the user ID
             try
             {

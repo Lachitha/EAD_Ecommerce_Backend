@@ -24,7 +24,7 @@ namespace MongoDbConsoleApp.Services
             // Validate if all products are active and have enough stock
             foreach (var item in order.Items)
             {
-                var product = await _productCollection.Find(p => p.Id == item.ProductId).FirstOrDefaultAsync();
+                var product = await GetProductByIdAsync(item.ProductId);
                 if (product == null || !product.IsActive)
                 {
                     throw new InvalidOperationException($"Product {item.ProductId} is not available.");
@@ -72,11 +72,22 @@ namespace MongoDbConsoleApp.Services
             return order;
         }
 
-        // Notify customer about cancellation approval (dummy method, implement actual notification)
-        public async Task NotifyCustomerAsync(string userId, string cancellationNote)
+        // Notify customer about cancellation approval
+        public async Task NotifyCustomerAsync(string? userId, string? cancellationNote)
         {
+            if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(cancellationNote))
+            {
+                throw new ArgumentException("User ID and cancellation note must be provided.");
+            }
+
             // Placeholder for notification logic (e.g., email or push notification)
             await Task.CompletedTask;
+        }
+
+        // Get a product by ID
+        public async Task<Product?> GetProductByIdAsync(string productId)
+        {
+            return await _productCollection.Find(p => p.Id == productId).FirstOrDefaultAsync();
         }
 
         // Find an order by ID
@@ -97,7 +108,6 @@ namespace MongoDbConsoleApp.Services
             var order = await FindOrderByIdAsync(orderId);
             if (order == null)
             {
-                // Log or return error
                 return null;
             }
 
@@ -122,7 +132,6 @@ namespace MongoDbConsoleApp.Services
 
             return order;
         }
-
 
         // Update the entire order status based on item delivery status
         private void UpdateOrderStatus(Order order)

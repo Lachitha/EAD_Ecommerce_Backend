@@ -1,5 +1,7 @@
 using MongoDB.Driver;
 using MongoDbConsoleApp.Models;
+using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 
 namespace MongoDbConsoleApp.Services
@@ -10,17 +12,20 @@ namespace MongoDbConsoleApp.Services
 
         public ProductService(MongoDbService mongoDbService)
         {
-            // Initialize the MongoDB collection for products
-            _products = mongoDbService.GetCollection<Product>("Products"); // Ensure this matches your collection name
+            _products = mongoDbService.GetCollection<Product>("Products");
         }
 
         public async Task CreateProductAsync(Product product)
         {
-            // Optionally, validate the product before insertion
             if (product == null)
                 throw new ArgumentNullException(nameof(product), "Product cannot be null.");
 
+            product.Stock = product.Quantity; // Set initial stock based on quantity
+
             await _products.InsertOneAsync(product);
+
+            // Check and notify if low stock after creation
+            await CheckAndNotifyLowStockAsync(product);
         }
 
         public async Task<Product?> GetProductByIdAsync(string id)
@@ -39,19 +44,38 @@ namespace MongoDbConsoleApp.Services
             if (product == null)
                 throw new ArgumentNullException(nameof(product), "Product cannot be null.");
 
-            // Ensure the product ID matches the one being updated
-            product.Id = id;
+            product.Id = id; // Ensure the product ID matches the one being updated
+
+            var existingProduct = await GetProductByIdAsync(id);
+            if (existingProduct == null)
+                throw new KeyNotFoundException($"No product found with ID: {id}");
+
+            // Update the stock based on the new quantity
+            product.Stock = existingProduct.Stock - (existingProduct.Quantity - product.Quantity);
+            product.Quantity = product.Quantity; // Optionally update quantity
+
             var result = await _products.ReplaceOneAsync(p => p.Id == id, product);
             if (result.ModifiedCount == 0)
                 throw new KeyNotFoundException($"No product found with ID: {id}");
+
+            // Check and notify if low stock after update
+            await CheckAndNotifyLowStockAsync(product);
         }
 
-        public async Task UpdateProductStockAsync(string id, int newStock)
+        private async Task CheckAndNotifyLowStockAsync(Product product)
         {
-            var update = Builders<Product>.Update.Set(p => p.Stock, newStock);
-            var result = await _products.UpdateOneAsync(p => p.Id == id, update);
-            if (result.ModifiedCount == 0)
-                throw new KeyNotFoundException($"No product found with ID: {id}");
+            // Check if the stock is below the low stock threshold
+            if (product.Stock < product.LowStockThreshold)
+            {
+                await NotifyVendorLowStockAsync(product);
+            }
+        }
+
+        private async Task NotifyVendorLowStockAsync(Product product)
+        {
+            // Notify the vendor of the low stock (this could be done via email or system notification)
+            Console.WriteLine($"Low stock alert: Product '{product.Name}' is below the low stock threshold. Current stock: {product.Stock}");
+            await Task.CompletedTask; // Simulate async operation
         }
 
         public async Task DeleteProductAsync(string id)
@@ -84,6 +108,11 @@ namespace MongoDbConsoleApp.Services
             var result = await _products.UpdateOneAsync(p => p.Id == id, update);
             if (result.ModifiedCount == 0)
                 throw new KeyNotFoundException($"No product found with ID: {id}");
+        }
+
+        public async Task<List<Product>> GetAllProductsAsync()
+        {
+            return await _products.Find(p => true).ToListAsync(); // Retrieve all products
         }
     }
 }

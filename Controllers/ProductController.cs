@@ -22,7 +22,6 @@ namespace MongoDbConsoleApp.Controllers
         [HttpPost]
         public async Task<IActionResult> CreateProduct([FromBody] Product product)
         {
-            // Extract the VendorId from the JWT token
             var vendorId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
             if (string.IsNullOrEmpty(vendorId))
@@ -30,18 +29,15 @@ namespace MongoDbConsoleApp.Controllers
                 return Unauthorized("Vendor ID not found in token.");
             }
 
-            // Set the VendorId and ensure Quantity is provided
             product.VendorId = vendorId;
 
-            if (product.Quantity <= 0) // Validate quantity
+            if (product.Quantity <= 0)
             {
                 return BadRequest("Quantity must be greater than zero.");
             }
 
-            // Automatically set the initial stock to be equal to the product's quantity
             product.Stock = product.Quantity;
 
-            // Create the product in the database
             await _productService.CreateProductAsync(product);
 
             return Ok(new { message = "Product created successfully.", productId = product.Id });
@@ -51,6 +47,11 @@ namespace MongoDbConsoleApp.Controllers
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateProduct(string id, [FromBody] Product product)
         {
+            if (product == null)
+            {
+                return BadRequest("Product cannot be null.");
+            }
+
             var existingProduct = await _productService.GetProductByIdAsync(id);
             if (existingProduct == null)
             {
@@ -63,8 +64,8 @@ namespace MongoDbConsoleApp.Controllers
         }
 
         [Authorize(Roles = "Vendor")]
-        [HttpPut("{id}/stock")]
-        public async Task<IActionResult> UpdateStock(string id, [FromBody] int quantityChange)
+        [HttpPut("{id}/quantity")]
+        public async Task<IActionResult> AddStock(string id, [FromBody] int additionalQuantity)
         {
             var product = await _productService.GetProductByIdAsync(id);
             if (product == null)
@@ -72,23 +73,25 @@ namespace MongoDbConsoleApp.Controllers
                 return NotFound("Product not found.");
             }
 
-            // Update the stock based on quantity change
-            if (product.Stock + quantityChange < 0)
+            // Validate additional quantity
+            if (additionalQuantity <= 0)
             {
-                return BadRequest("Cannot reduce stock below zero.");
+                return BadRequest("Quantity to add must be greater than zero.");
             }
 
-            product.Stock += quantityChange;
-            await _productService.UpdateProductStockAsync(id, product.Stock);
+            // Update stock by adding the new quantity
+            product.Stock += additionalQuantity;
+            product.Quantity += additionalQuantity;
 
-            // Check for low stock
+            await _productService.UpdateProductAsync(id, product);
+
+            // Check for low stock alert
             if (product.Stock < product.LowStockThreshold)
             {
-                // Notify vendor (placeholder for notification logic)
-                return Ok(new { message = "Stock updated successfully.", lowStockAlert = "Product is below the low stock threshold!" });
+                return Ok(new { message = "Quantity updated successfully.", lowStockAlert = "Product is below the low stock threshold!" });
             }
 
-            return Ok(new { message = "Stock updated successfully." });
+            return Ok(new { message = "Quantity updated successfully." });
         }
 
         [Authorize(Roles = "Vendor")]
@@ -119,6 +122,13 @@ namespace MongoDbConsoleApp.Controllers
         {
             await _productService.DeactivateProductAsync(id);
             return Ok(new { message = "Product deactivated successfully." });
+        }
+        [Authorize(Roles = "Administrator,Customer")]
+        [HttpGet]
+        public async Task<IActionResult> GetAllProducts()
+        {
+            var products = await _productService.GetAllProductsAsync();
+            return Ok(products); // Return the list of products
         }
     }
 }
