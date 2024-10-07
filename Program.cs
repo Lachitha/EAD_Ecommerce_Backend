@@ -74,12 +74,12 @@ builder.Services.AddAuthorization();
 
 // Enable CORS
 builder.Services.AddCors(options =>
-{
-    options.AddPolicy("AllowSpecificOrigin",
-        builder => builder.WithOrigins("http://example.com") // Replace with your allowed origin(s)
-                          .AllowAnyMethod()
-                          .AllowAnyHeader());
-});
+   {
+       options.AddPolicy("AllowAll",
+           builder => builder.AllowAnyOrigin()
+                             .AllowAnyMethod()
+                             .AllowAnyHeader());
+   });
 
 // Add controllers (this is necessary for API routing)
 builder.Services.AddControllers();
@@ -94,7 +94,7 @@ using (var scope = app.Services.CreateScope())
 }
 
 // Configure middleware
-app.UseCors("AllowSpecificOrigin"); // Use the CORS policy
+app.UseCors("AllowAll"); // Use the CORS policy
 
 app.UseAuthentication();
 app.UseAuthorization();
