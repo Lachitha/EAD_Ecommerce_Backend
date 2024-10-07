@@ -70,7 +70,7 @@ namespace MongoDbConsoleApp.Controllers
             }
 
             var token = _jwtHelper.GenerateToken(existingUser.Id, existingUser.Username, existingUser.Role);
-            return Ok(new { Token = token });
+            return Ok(new { Token = token, Role = existingUser.Role });
         }
 
         // Update user details using JWT token
