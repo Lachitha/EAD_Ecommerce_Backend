@@ -35,8 +35,12 @@ namespace MongoDbConsoleApp.Services
                 {
                     throw new InvalidOperationException($"Insufficient stock for product {product.Name}.");
                 }
+            }
 
-                // Reduce stock
+            // Reduce stock for all items only after validation
+            foreach (var item in order.Items)
+            {
+                var product = await GetProductByIdAsync(item.ProductId);
                 product.Stock -= item.Quantity;
                 var update = Builders<Product>.Update.Set(p => p.Stock, product.Stock);
                 await _productCollection.UpdateOneAsync(p => p.Id == product.Id, update);
@@ -51,12 +55,19 @@ namespace MongoDbConsoleApp.Services
         public async Task<Order?> RequestCancelOrderAsync(string orderId, string cancellationNote)
         {
             var order = await FindOrderByIdAsync(orderId);
-            if (order != null)
+            if (order == null)
             {
-                order.Status = OrderStatus.CancellationRequested;
-                order.CancellationNote = cancellationNote;
-                await UpdateOrderAsync(orderId, order);
+                return null; // Order not found
             }
+
+            if (order.Status != OrderStatus.Processing)
+            {
+                throw new InvalidOperationException("Only orders in processing can be requested for cancellation.");
+            }
+
+            order.Status = OrderStatus.CancellationRequested;
+            order.CancellationNote = cancellationNote;
+            await UpdateOrderAsync(orderId, order);
             return order;
         }
 
@@ -64,11 +75,13 @@ namespace MongoDbConsoleApp.Services
         public async Task<Order?> ApproveCancelOrderAsync(string orderId)
         {
             var order = await FindOrderByIdAsync(orderId);
-            if (order != null)
+            if (order == null)
             {
-                order.Status = OrderStatus.Canceled;
-                await UpdateOrderAsync(orderId, order);
+                return null; // Order not found
             }
+
+            order.Status = OrderStatus.Canceled;
+            await UpdateOrderAsync(orderId, order);
             return order;
         }
 
@@ -108,26 +121,27 @@ namespace MongoDbConsoleApp.Services
             var order = await FindOrderByIdAsync(orderId);
             if (order == null)
             {
-                return null;
+                return null; // Order not found
             }
 
             // Find the item to update
             var item = order.Items.FirstOrDefault(i => i.ProductId == productId && i.VendorId == vendorId);
-
             if (item != null)
             {
                 // Update the status of the item
                 item.Status = OrderItemStatus.Delivered;
-                await UpdateOrderAsync(orderId, order); // Save changes to the order
 
-                // After item status update, update the order status based on items delivery status
+                // Save changes to the order
+                await UpdateOrderAsync(orderId, order);
+
+                // Update the order status based on items' delivery status
                 UpdateOrderStatus(order);
                 await UpdateOrderAsync(orderId, order); // Save changes to order status
             }
             else
             {
                 // Log or handle case where product or vendor doesn't match
-                return null;
+                return null; // Item not found
             }
 
             return order;
@@ -170,5 +184,11 @@ namespace MongoDbConsoleApp.Services
             var result = await _orderCollection.ReplaceOneAsync(o => o.Id == orderId, updatedOrder);
             return result.IsAcknowledged ? updatedOrder : null;
         }
+
+        public async Task<List<Order>> GetAllOrdersAsync()
+        {
+            return await _orderCollection.Find(_ => true).ToListAsync(); // Fetch all orders
+        }
+
     }
 }

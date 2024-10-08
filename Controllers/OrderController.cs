@@ -173,5 +173,20 @@ namespace MongoDbConsoleApp.Controllers
 
             return Ok(updatedOrder);
         }
+
+        [Authorize(Roles = "Administrator")]
+        [HttpGet("all")]
+        public async Task<IActionResult> GetAllOrders()
+        {
+            var orders = await _orderService.GetAllOrdersAsync();
+            if (orders == null || orders.Count == 0)
+            {
+                return NotFound("No orders found.");
+            }
+
+            return Ok(orders);
+        }
+
+
     }
 }
