@@ -5,6 +5,7 @@ using MongoDbConsoleApp.Services;
 using MongoDbConsoleApp.Helpers;
 using System.Threading.Tasks;
 using System.Security.Claims;
+using System.Linq;
 
 namespace MongoDbConsoleApp.Controllers
 {
@@ -21,7 +22,6 @@ namespace MongoDbConsoleApp.Controllers
             _jwtHelper = jwtHelper;
         }
 
-        // Register new user
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] User user)
         {
@@ -35,6 +35,11 @@ namespace MongoDbConsoleApp.Controllers
                 return BadRequest("Invalid role specified.");
             }
 
+            if (user.Role == Role.Vendor && !User.IsInRole(Role.Administrator))
+            {
+                return Unauthorized("Only administrators can create vendors.");
+            }
+
             if (await _userService.FindByUsernameAsync(user.Username) != null)
             {
                 return BadRequest("Username already exists.");
@@ -46,14 +51,11 @@ namespace MongoDbConsoleApp.Controllers
             }
 
             user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(user.PasswordHash);
-            user.Id = MongoDB.Bson.ObjectId.GenerateNewId().ToString();
-
             await _userService.CreateUserAsync(user);
 
             return Ok(new { message = "User registered successfully.", userId = user.Id });
         }
 
-        // User login
         [HttpPost("login")]
         public async Task<IActionResult> Login([FromBody] User user)
         {
@@ -63,7 +65,6 @@ namespace MongoDbConsoleApp.Controllers
             }
 
             var existingUser = await _userService.FindByEmailAsync(user.Email);
-
             if (existingUser == null || !BCrypt.Net.BCrypt.Verify(user.PasswordHash, existingUser.PasswordHash))
             {
                 return Unauthorized("Invalid credentials.");
@@ -73,7 +74,6 @@ namespace MongoDbConsoleApp.Controllers
             return Ok(new { Token = token, Role = existingUser.Role });
         }
 
-        // Update user details using JWT token
         [Authorize]
         [HttpPut("update")]
         public async Task<IActionResult> Update([FromBody] User updatedUser)
@@ -98,17 +98,15 @@ namespace MongoDbConsoleApp.Controllers
             existingUser.Username = updatedUser.Username;
             existingUser.Email = updatedUser.Email;
 
-            if (!string.IsNullOrWhiteSpace(updatedUser.PasswordHash) &&
-                !BCrypt.Net.BCrypt.Verify(updatedUser.PasswordHash, existingUser.PasswordHash))
+            if (!string.IsNullOrWhiteSpace(updatedUser.PasswordHash))
             {
                 existingUser.PasswordHash = BCrypt.Net.BCrypt.HashPassword(updatedUser.PasswordHash);
             }
 
             await _userService.UpdateUserAsync(existingUser);
-            return Ok(new { message = "User details updated successfully." });
+            return Ok(new { message = "User details updated successfully.", user = existingUser });
         }
 
-        // Delete user using JWT token
         [Authorize]
         [HttpDelete("delete")]
         public async Task<IActionResult> Delete()
@@ -129,7 +127,6 @@ namespace MongoDbConsoleApp.Controllers
             return Ok(new { message = "User deleted successfully." });
         }
 
-        // Get logged-in user details
         [Authorize]
         [HttpGet("me")]
         public async Task<IActionResult> GetUserDetails()
@@ -150,10 +147,48 @@ namespace MongoDbConsoleApp.Controllers
             {
                 existingUser.Username,
                 existingUser.Role,
-                existingUser.Email
+                existingUser.Email,
+                existingUser.AverageRating // Include average rating
             };
 
             return Ok(userDetails);
+        }
+
+        [Authorize(Roles = Role.Customer)]
+        [HttpPost("{vendorId}/rate")]
+        public async Task<IActionResult> RateVendor(string vendorId, [FromBody] VendorRating rating)
+        {
+            if (rating.Rating < 1 || rating.Rating > 5)
+            {
+                return BadRequest("Rating should be between 1 and 5.");
+            }
+
+            var customerId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            rating.CustomerId = customerId;
+
+            await _userService.AddVendorRatingAsync(vendorId, rating);
+            return Ok(new { message = "Rating and comment added successfully." });
+        }
+        [HttpGet("vendors")]
+        public async Task<IActionResult> GetVendors()
+        {
+            var vendors = await _userService.GetVendorsAsync();
+            return Ok(vendors.Select(v => new
+            {
+                v.VendorName,
+                v.VendorDescription,
+                AverageRating = v.AverageRating
+            }));
+        }
+        [Authorize(Roles = Role.Customer)]
+        [HttpPut("{vendorId}/edit-comment")]
+        public async Task<IActionResult> EditComment(string vendorId, [FromBody] string newComment)
+        {
+            var customerId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            // Logic to ensure the customer can edit only their own comment
+            await _userService.EditVendorCommentAsync(vendorId, customerId, newComment);
+            return Ok(new { message = "Comment updated successfully." });
         }
     }
 }

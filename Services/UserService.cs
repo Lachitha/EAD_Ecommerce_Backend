@@ -8,14 +8,14 @@ namespace MongoDbConsoleApp.Services
     {
         private readonly IMongoCollection<User> _users;
 
-        public UserService(MongoDbService mongoDbService) // Inject MongoDbService
+        public UserService(MongoDbService mongoDbService)
         {
-            // Get the "TestCollection" from the MongoDbService
             _users = mongoDbService.GetCollection<User>("User");
         }
 
         public async Task CreateUserAsync(User user)
         {
+
             await _users.InsertOneAsync(user);
         }
 
@@ -34,12 +34,6 @@ namespace MongoDbConsoleApp.Services
             return await _users.Find(u => u.Id == id).FirstOrDefaultAsync();
         }
 
-        public async Task<bool> AuthenticateUserAsync(string email, string passwordHash)
-        {
-            var user = await _users.Find(u => u.Email == email && u.PasswordHash == passwordHash).FirstOrDefaultAsync();
-            return user != null;
-        }
-
         public async Task DeleteUserAsync(string id)
         {
             await _users.DeleteOneAsync(u => u.Id == id);
@@ -47,14 +41,30 @@ namespace MongoDbConsoleApp.Services
 
         public async Task UpdateUserAsync(User user)
         {
-            // Ensure that the user ID is set for the update operation
             if (string.IsNullOrEmpty(user.Id))
             {
                 throw new ArgumentException("User ID cannot be null or empty.", nameof(user.Id));
             }
 
-            // Replace the user in the collection
             await _users.ReplaceOneAsync(u => u.Id == user.Id, user);
+        }
+
+        public async Task AddVendorRatingAsync(string vendorId, VendorRating rating)
+        {
+            var update = Builders<User>.Update.Push(u => u.Ratings, rating);
+            await _users.UpdateOneAsync(u => u.Id == vendorId, update);
+        }
+
+        public async Task<List<User>> GetVendorsAsync()
+        {
+            return await _users.Find(u => u.Role == Role.Vendor).ToListAsync();
+        }
+
+        public async Task EditVendorCommentAsync(string vendorId, string customerId, string newComment)
+        {
+            var update = Builders<User>.Update
+                .Set(u => u.Ratings[-1].Comment, newComment); // Update the specific comment by the customer
+            await _users.UpdateOneAsync(u => u.Id == vendorId && u.Ratings.Any(r => r.CustomerId == customerId), update);
         }
     }
 }

@@ -1,5 +1,6 @@
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
+using System.Collections.Generic;
 
 namespace MongoDbConsoleApp.Models
 {
@@ -21,5 +22,23 @@ namespace MongoDbConsoleApp.Models
 
         // Address property
         public Address Address { get; set; } = new Address();  // User's address
+
+        // Vendor-specific properties
+        public string? VendorName { get; set; }  // Vendor's name (if role is Vendor)
+        public string? VendorDescription { get; set; }  // Vendor's description (if role is Vendor)
+
+        // List of customer ratings and comments for the vendor
+        public List<VendorRating> Ratings { get; set; } = new List<VendorRating>();
+
+        [BsonIgnore]
+        public double AverageRating => Ratings.Count > 0 ? Ratings.Average(r => r.Rating) : 0;  // Calculate average rating
+    }
+
+    public class VendorRating
+    {
+        public string CustomerId { get; set; } = string.Empty;  // ID of the customer who rated the vendor
+        public int Rating { get; set; }  // Rating (1-5)
+        public string Comment { get; set; } = string.Empty;  // Customer's comment
+        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;  // Timestamp for the rating
     }
 }
