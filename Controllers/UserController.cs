@@ -145,10 +145,11 @@ namespace MongoDbConsoleApp.Controllers
 
             var userDetails = new
             {
+                existingUser.FirstName,
+                existingUser.LastName,
                 existingUser.Username,
                 existingUser.Role,
-                existingUser.Email,
-                existingUser.AverageRating // Include average rating
+                existingUser.Email
             };
 
             return Ok(userDetails);
@@ -169,6 +170,7 @@ namespace MongoDbConsoleApp.Controllers
             await _userService.AddVendorRatingAsync(vendorId, rating);
             return Ok(new { message = "Rating and comment added successfully." });
         }
+
         [HttpGet("vendors")]
         public async Task<IActionResult> GetVendors()
         {
@@ -180,6 +182,7 @@ namespace MongoDbConsoleApp.Controllers
                 AverageRating = v.AverageRating
             }));
         }
+
         [Authorize(Roles = Role.Customer)]
         [HttpPut("{vendorId}/edit-comment")]
         public async Task<IActionResult> EditComment(string vendorId, [FromBody] string newComment)
@@ -189,6 +192,24 @@ namespace MongoDbConsoleApp.Controllers
             // Logic to ensure the customer can edit only their own comment
             await _userService.EditVendorCommentAsync(vendorId, customerId, newComment);
             return Ok(new { message = "Comment updated successfully." });
+        }
+
+        // New: View all users (Admin only)
+        [Authorize(Roles = Role.Administrator)]
+        [HttpGet("all-users")]
+        public async Task<IActionResult> GetAllUsers()
+        {
+            var users = await _userService.GetAllUsersAsync();
+            return Ok(users);  // Returns all details of all users
+        }
+
+        // New: View only customers (Admin only)
+        [Authorize(Roles = Role.Administrator)]
+        [HttpGet("customers")]
+        public async Task<IActionResult> GetCustomers()
+        {
+            var customers = await _userService.GetUsersByRoleAsync(Role.Customer);
+            return Ok(customers);  // Returns all details of customers
         }
     }
 }
