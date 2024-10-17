@@ -39,7 +39,7 @@ namespace MongoDbConsoleApp.Helpers
                     new Claim(ClaimTypes.Name, username),
                     new Claim(ClaimTypes.Role, role)
                 }),
-                Expires = DateTime.UtcNow.AddHours(1),
+                Expires = DateTime.UtcNow.AddHours(24),
                 Issuer = _issuer,
                 Audience = _audience,
                 SigningCredentials = signingCredentials
