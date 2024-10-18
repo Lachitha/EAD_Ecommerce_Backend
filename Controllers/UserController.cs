@@ -25,35 +25,69 @@ namespace MongoDbConsoleApp.Controllers
         [HttpPost("register")]
         public async Task<IActionResult> Register([FromBody] User user)
         {
+            // Check if the request body is valid
             if (!ModelState.IsValid || string.IsNullOrWhiteSpace(user.PasswordHash))
             {
                 return BadRequest("Username, email, and password are required.");
             }
 
+            // Validate the role of the new user being created
             if (!Role.IsValidRole(user.Role))
             {
                 return BadRequest("Invalid role specified.");
             }
 
-            if (user.Role == Role.Vendor && !User.IsInRole(Role.Administrator))
+            // Customers can register themselves
+            if (user.Role == Role.Customer)
             {
-                return Unauthorized("Only administrators can create vendors.");
+                // Check if the username already exists
+                if (await _userService.FindByUsernameAsync(user.Username) != null)
+                {
+                    return BadRequest("Username already exists.");
+                }
+
+                // Check if the email already exists
+                if (await _userService.FindByEmailAsync(user.Email) != null)
+                {
+                    return BadRequest("Email already exists.");
+                }
+
+                // Hash the user's password and create the user
+                user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(user.PasswordHash);
+                await _userService.CreateUserAsync(user);
+
+                return Ok(new { message = "Customer registered successfully.", userId = user.Id });
             }
 
-            if (await _userService.FindByUsernameAsync(user.Username) != null)
+            // For roles other than Customer (e.g., Vendor or Administrator)
+            if (user.Role == Role.Vendor || user.Role == Role.Administrator)
             {
-                return BadRequest("Username already exists.");
+                // Ensure the logged-in user is an Administrator
+                if (!User.IsInRole(Role.Administrator))
+                {
+                    return Unauthorized("Only administrators can create vendors or new administrators.");
+                }
+
+                // Check if the username already exists
+                if (await _userService.FindByUsernameAsync(user.Username) != null)
+                {
+                    return BadRequest("Username already exists.");
+                }
+
+                // Check if the email already exists
+                if (await _userService.FindByEmailAsync(user.Email) != null)
+                {
+                    return BadRequest("Email already exists.");
+                }
+
+                // Hash the user's password and create the user
+                user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(user.PasswordHash);
+                await _userService.CreateUserAsync(user);
+
+                return Ok(new { message = $"{user.Role} registered successfully.", userId = user.Id });
             }
 
-            if (await _userService.FindByEmailAsync(user.Email) != null)
-            {
-                return BadRequest("Email already exists.");
-            }
-
-            user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(user.PasswordHash);
-            await _userService.CreateUserAsync(user);
-
-            return Ok(new { message = "User registered successfully.", userId = user.Id });
+            return BadRequest("Invalid user role.");
         }
 
         [HttpPost("login")]
