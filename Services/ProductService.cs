@@ -114,5 +114,25 @@ namespace MongoDbConsoleApp.Services
         {
             return await _products.Find(p => true).ToListAsync(); // Retrieve all products
         }
+
+        public async Task<List<Product>> GetActiveProductsAsync()
+        {
+            return await _products.Find(p => p.IsActive).ToListAsync(); // Retrieve active products
+        }
+
+        public async Task<List<Product>> GetInactiveProductsAsync()
+        {
+            return await _products.Find(p => !p.IsActive).ToListAsync(); // Retrieve inactive products
+        }
+
+        public async Task<Product?> GetVendorProductByIdAsync(string id, string productId)
+        {
+            if (string.IsNullOrEmpty(id))
+                throw new ArgumentException("Invalid vendor ID.", nameof(id));
+            if (string.IsNullOrEmpty(productId))
+                throw new ArgumentException("Invalid product ID.", nameof(productId));
+
+            return await _products.Find(p => p.Id == productId && p.VendorId == id).FirstOrDefaultAsync();
+        }
     }
 }

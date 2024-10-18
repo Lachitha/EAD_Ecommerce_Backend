@@ -3,6 +3,15 @@ using MongoDB.Bson.Serialization.Attributes;
 
 namespace MongoDbConsoleApp.Models
 {
+    public enum ProductCategory
+    {
+        MensWear,
+        KidsWear,
+        WomenWear,
+        Toys,
+        BabyWear
+    }
+
     public class Product
     {
         [BsonId]
@@ -24,5 +33,10 @@ namespace MongoDbConsoleApp.Models
         public int LowStockThreshold { get; set; } // Alert vendor if stock goes below this threshold
 
         public string VendorId { get; set; } = string.Empty; // Associate product with a vendor
+
+        [BsonRepresentation(BsonType.String)] // Store enum as string in MongoDB
+        public ProductCategory Category { get; set; } = ProductCategory.MensWear; // Default category
+
+        public string? ImageBase64 { get; set; } // Base64 string to store image
     }
 }

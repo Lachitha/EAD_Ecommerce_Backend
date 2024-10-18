@@ -1,7 +1,9 @@
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using MongoDbConsoleApp.Models;
 using MongoDbConsoleApp.Services;
+using System.IO;
 using System.Security.Claims;
 using System.Threading.Tasks;
 
@@ -20,7 +22,7 @@ namespace MongoDbConsoleApp.Controllers
 
         [Authorize(Roles = "Vendor")]
         [HttpPost]
-        public async Task<IActionResult> CreateProduct([FromBody] Product product)
+        public async Task<IActionResult> CreateProduct([FromForm] Product product, [FromForm] IFormFile? imageFile)
         {
             var vendorId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
@@ -34,6 +36,18 @@ namespace MongoDbConsoleApp.Controllers
             if (product.Quantity <= 0)
             {
                 return BadRequest("Quantity must be greater than zero.");
+            }
+
+            // Automatically convert image to Base64 if uploaded
+            if (imageFile != null && imageFile.Length > 0)
+            {
+                using (var memoryStream = new MemoryStream())
+                {
+                    await imageFile.CopyToAsync(memoryStream);
+                    var imageBytes = memoryStream.ToArray();
+                    var base64String = Convert.ToBase64String(imageBytes);
+                    product.ImageBase64 = $"data:{imageFile.ContentType};base64,{base64String}";
+                }
             }
 
             product.Stock = product.Quantity;
@@ -123,12 +137,144 @@ namespace MongoDbConsoleApp.Controllers
             await _productService.DeactivateProductAsync(id);
             return Ok(new { message = "Product deactivated successfully." });
         }
+
         [Authorize(Roles = "Administrator,Customer")]
-        [HttpGet]
+        [HttpGet("all")]
         public async Task<IActionResult> GetAllProducts()
         {
             var products = await _productService.GetAllProductsAsync();
-            return Ok(products); // Return the list of products
+
+            if (User.IsInRole("Customer"))
+            {
+                // Filter for customers to include only activated products
+                products = products.Where(p => p.IsActive).ToList();
+            }
+
+            var productResponses = products.Select(p => new
+            {
+                p.Id,
+                p.Name,
+                p.Description,
+                p.Price,
+                p.Quantity,
+                p.Stock,
+                p.IsActive,
+                p.LowStockThreshold,
+                p.VendorId,
+                p.Category,
+                Image = ConvertImageFromBase64(p.ImageBase64) // Convert Base64 image to image format
+            }).ToList();
+
+            return Ok(productResponses); // Return the modified list of products
         }
+
+        [Authorize(Roles = "Administrator")]
+        [HttpGet("active")]
+        public async Task<IActionResult> GetActiveProducts()
+        {
+            var products = await _productService.GetAllProductsAsync();
+
+            var activeProducts = products.Where(p => p.IsActive).Select(p => new
+            {
+                p.Id,
+                p.Name,
+                p.Description,
+                p.Price,
+                p.Quantity,
+                p.Stock,
+                p.IsActive,
+                p.LowStockThreshold,
+                p.VendorId,
+                p.Category,
+                Image = ConvertImageFromBase64(p.ImageBase64) // Convert Base64 image to image format
+            }).ToList();
+
+            return Ok(activeProducts); // Return the list of active products
+        }
+
+        [Authorize(Roles = "Administrator")]
+        [HttpGet("inactive")]
+        public async Task<IActionResult> GetInactiveProducts()
+        {
+            var products = await _productService.GetAllProductsAsync();
+
+            var inactiveProducts = products.Where(p => !p.IsActive).Select(p => new
+            {
+                p.Id,
+                p.Name,
+                p.Description,
+                p.Price,
+                p.Quantity,
+                p.Stock,
+                p.IsActive,
+                p.LowStockThreshold,
+                p.VendorId,
+                p.Category,
+                Image = ConvertImageFromBase64(p.ImageBase64) // Convert Base64 image to image format
+            }).ToList();
+
+            return Ok(inactiveProducts); // Return the list of inactive products
+        }
+
+        private string ConvertImageFromBase64(string? base64Image)
+        {
+            if (string.IsNullOrEmpty(base64Image))
+            {
+                return string.Empty; // Return an empty string if no image is provided
+            }
+
+            // Convert base64 string to image file URL (data URL)
+            return $"data:image/jpeg;base64,{base64Image}"; // Use "image/png" if the image is PNG
+        }
+
+
+        [Authorize(Roles = "Administrator,Customer")]
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetProductById(string id)
+        {
+            var product = await _productService.GetProductByIdAsync(id);
+            if (product == null)
+            {
+                return NotFound("Product not found.");
+            }
+
+            // Convert the image to base64 if it exists
+            if (!string.IsNullOrEmpty(product.ImageBase64))
+            {
+                product.ImageBase64 = ConvertToBase64(product.ImageBase64);
+            }
+
+            return Ok(product);
+        }
+
+        // Convert image to base64 format (if needed)
+        private string ConvertToBase64(string imageBase64)
+        {
+            // Assuming the image is already in base64, this method could be used for additional processing
+            return imageBase64;
+        }
+
+
+        [Authorize(Roles = "Vendor")]
+        [HttpGet("vendor/{id}")]
+        public async Task<IActionResult> GetVendorProductById(string id)
+        {
+            var vendorId = User.FindFirst("id")?.Value; // Assuming the vendor ID is stored in the JWT token
+
+            if (string.IsNullOrEmpty(vendorId))
+            {
+                return Unauthorized("Vendor ID is not available in the token.");
+            }
+
+            var product = await _productService.GetVendorProductByIdAsync(vendorId, id);
+            if (product == null)
+            {
+                return NotFound("Product not found or does not belong to the vendor.");
+            }
+
+            return Ok(product);
+        }
+
+
     }
 }
