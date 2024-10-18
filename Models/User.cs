@@ -18,7 +18,8 @@ namespace MongoDbConsoleApp.Models
         public string Email { get; set; } = string.Empty;  // User's email address
         public string FirstName { get; set; } = string.Empty;  // User's first name
         public string LastName { get; set; } = string.Empty;  // User's last name
-        public DateTime DateOfBirth { get; set; }  // User's date of birth
+                                                              // User's date of birth
+        public DateTime? DateOfBirth { get; set; }
 
         // Address property
         public Address Address { get; set; } = new Address();  // User's address

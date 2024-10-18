@@ -150,7 +150,8 @@ namespace MongoDbConsoleApp.Controllers
                 existingUser.Username,
                 existingUser.Role,
                 existingUser.Email,
-                existingUser.Address
+                existingUser.Address,
+                DateOfBirth = existingUser.DateOfBirth.HasValue ? existingUser.DateOfBirth.Value.ToString("yyyy-MM-dd") : null
             };
 
             return Ok(userDetails);
