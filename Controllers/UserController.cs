@@ -129,15 +129,58 @@ namespace MongoDbConsoleApp.Controllers
                 return NotFound("User not found.");
             }
 
-            existingUser.Username = updatedUser.Username;
-            existingUser.Email = updatedUser.Email;
+            // Check for unique username and email
+            if (!string.Equals(existingUser.Username, updatedUser.Username, StringComparison.OrdinalIgnoreCase))
+            {
+                if (await _userService.FindByUsernameAsync(updatedUser.Username) != null)
+                {
+                    return BadRequest("Username already exists.");
+                }
+                existingUser.Username = updatedUser.Username; // Update only if unique
+            }
 
+            if (!string.Equals(existingUser.Email, updatedUser.Email, StringComparison.OrdinalIgnoreCase))
+            {
+                if (await _userService.FindByEmailAsync(updatedUser.Email) != null)
+                {
+                    return BadRequest("Email already exists.");
+                }
+                existingUser.Email = updatedUser.Email; // Update only if unique
+            }
+
+            // Update other user details
+            existingUser.FirstName = updatedUser.FirstName;
+            existingUser.LastName = updatedUser.LastName;
+
+            // Preserve the existing role (do not allow role changes)
+            // existingUser.Role remains unchanged
+
+            // Preserve the existing password if a new one is not provided
             if (!string.IsNullOrWhiteSpace(updatedUser.PasswordHash))
             {
+                // Only update the password if a new one is provided
                 existingUser.PasswordHash = BCrypt.Net.BCrypt.HashPassword(updatedUser.PasswordHash);
             }
 
+            // Update address
+            if (updatedUser.Address != null)
+            {
+                existingUser.Address.Street = updatedUser.Address.Street;
+                existingUser.Address.City = updatedUser.Address.City;
+                existingUser.Address.State = updatedUser.Address.State;
+                existingUser.Address.PostalCode = updatedUser.Address.PostalCode;
+                existingUser.Address.Country = updatedUser.Address.Country;
+            }
+
+            // Update date of birth if provided
+            if (updatedUser.DateOfBirth != default(DateTime))
+            {
+                existingUser.DateOfBirth = updatedUser.DateOfBirth;
+            }
+
+            // Save updated user details
             await _userService.UpdateUserAsync(existingUser);
+
             return Ok(new { message = "User details updated successfully.", user = existingUser });
         }
 
