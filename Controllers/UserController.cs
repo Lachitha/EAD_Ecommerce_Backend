@@ -54,6 +54,8 @@ namespace MongoDbConsoleApp.Controllers
 
                 // Hash the user's password and create the user
                 user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(user.PasswordHash);
+
+                // At this point, IsActive is already set to true by default
                 await _userService.CreateUserAsync(user);
 
                 return Ok(new { message = "Customer registered successfully.", userId = user.Id });
@@ -82,6 +84,8 @@ namespace MongoDbConsoleApp.Controllers
 
                 // Hash the user's password and create the user
                 user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(user.PasswordHash);
+
+                // At this point, IsActive is already set to true by default
                 await _userService.CreateUserAsync(user);
 
                 return Ok(new { message = $"{user.Role} registered successfully.", userId = user.Id });
@@ -99,7 +103,7 @@ namespace MongoDbConsoleApp.Controllers
             }
 
             var existingUser = await _userService.FindByEmailAsync(user.Email);
-            if (existingUser == null || !BCrypt.Net.BCrypt.Verify(user.PasswordHash, existingUser.PasswordHash))
+            if (existingUser == null || !existingUser.IsActive || !BCrypt.Net.BCrypt.Verify(user.PasswordHash, existingUser.PasswordHash))
             {
                 return Unauthorized("Invalid credentials.");
             }
@@ -290,5 +294,29 @@ namespace MongoDbConsoleApp.Controllers
             var customers = await _userService.GetUsersByRoleAsync(Role.Customer);
             return Ok(customers);  // Returns all details of customers
         }
+
+        [Authorize(Roles = Role.Customer)]
+        [HttpPost("deactivate")]
+        public async Task<IActionResult> DeactivateAccount()
+        {
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized("Invalid token.");
+            }
+
+            var existingUser = await _userService.FindByIdAsync(userId);
+            if (existingUser == null)
+            {
+                return NotFound("User not found.");
+            }
+
+            // Deactivate the account
+            existingUser.IsActive = false; // Set account status to inactive
+
+            await _userService.UpdateUserAsync(existingUser);
+            return Ok(new { message = "Account deactivated successfully." });
+        }
+
     }
 }

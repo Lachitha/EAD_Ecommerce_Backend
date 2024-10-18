@@ -9,7 +9,7 @@ namespace MongoDbConsoleApp.Models
         [BsonId]
         [BsonRepresentation(BsonType.ObjectId)]
         public string? Id { get; set; }  // Nullable Id for MongoDB
-
+        public bool IsActive { get; set; } = true;
         public string Username { get; set; } = string.Empty;  // Default value to prevent nullability
         public string PasswordHash { get; set; } = string.Empty;  // Default value to prevent nullability
         public string Role { get; set; } = string.Empty;  // Default value to prevent nullability

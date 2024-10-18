@@ -89,5 +89,7 @@ namespace MongoDbConsoleApp.Services
         {
             return await _users.Find(u => u.Role == role).ToListAsync();  // Retrieves users based on their role
         }
+
+
     }
 }
