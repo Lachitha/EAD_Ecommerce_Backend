@@ -1,11 +1,13 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using MongoDB.Bson;
 using MongoDbConsoleApp.Models;
 using MongoDbConsoleApp.Services;
 using System.IO;
 using System.Security.Claims;
 using System.Threading.Tasks;
+using MongoDB.Bson;
 
 namespace MongoDbConsoleApp.Controllers
 {
@@ -22,7 +24,7 @@ namespace MongoDbConsoleApp.Controllers
 
         [Authorize(Roles = "Vendor")]
         [HttpPost]
-        public async Task<IActionResult> CreateProduct([FromForm] Product product, [FromForm] IFormFile? imageFile)
+        public async Task<IActionResult> CreateProduct([FromBody] Product request)
         {
             var vendorId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
 
@@ -31,32 +33,28 @@ namespace MongoDbConsoleApp.Controllers
                 return Unauthorized("Vendor ID not found in token.");
             }
 
-            product.VendorId = vendorId;
+            // Create a new product from the request
+            var product = new Product
+            {
+                VendorId = vendorId,
+                Name = request.Name,
+                Description = request.Description,
+                Price = request.Price,
+                Quantity = request.Quantity,
+                Stock = request.Quantity,
+                ImageBase64 = request.ImageBase64,
+                Categories = request.Categories // Directly assign the list of categories from the request
+            };
 
             if (product.Quantity <= 0)
             {
                 return BadRequest("Quantity must be greater than zero.");
             }
 
-            // Automatically convert image to Base64 if uploaded
-            if (imageFile != null && imageFile.Length > 0)
-            {
-                using (var memoryStream = new MemoryStream())
-                {
-                    await imageFile.CopyToAsync(memoryStream);
-                    var imageBytes = memoryStream.ToArray();
-                    var base64String = Convert.ToBase64String(imageBytes);
-                    product.ImageBase64 = $"data:{imageFile.ContentType};base64,{base64String}";
-                }
-            }
-
-            product.Stock = product.Quantity;
-
             await _productService.CreateProductAsync(product);
 
             return Ok(new { message = "Product created successfully.", productId = product.Id });
         }
-
         [Authorize(Roles = "Vendor")]
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateProduct(string id, [FromBody] Product product)
@@ -161,7 +159,7 @@ namespace MongoDbConsoleApp.Controllers
                 p.IsActive,
                 p.LowStockThreshold,
                 p.VendorId,
-                p.Category,
+                p.Categories,
                 Image = ConvertImageFromBase64(p.ImageBase64) // Convert Base64 image to image format
             }).ToList();
 
@@ -185,7 +183,7 @@ namespace MongoDbConsoleApp.Controllers
                 p.IsActive,
                 p.LowStockThreshold,
                 p.VendorId,
-                p.Category,
+                p.Categories,
                 Image = ConvertImageFromBase64(p.ImageBase64) // Convert Base64 image to image format
             }).ToList();
 
@@ -209,7 +207,7 @@ namespace MongoDbConsoleApp.Controllers
                 p.IsActive,
                 p.LowStockThreshold,
                 p.VendorId,
-                p.Category,
+                p.Categories,
                 Image = ConvertImageFromBase64(p.ImageBase64) // Convert Base64 image to image format
             }).ToList();
 
@@ -275,6 +273,52 @@ namespace MongoDbConsoleApp.Controllers
             return Ok(product);
         }
 
+        [Authorize(Roles = "Administrator")]
+        [HttpPost("{id}/category")]
+        public async Task<IActionResult> AddCategory(string id, [FromBody] Product.ProductCategoryDetails category)
+        {
+            if (category == null)
+            {
+                return BadRequest("Category cannot be null.");
+            }
+
+            // Ensure the category has an ID
+            category.Id = ObjectId.GenerateNewId().ToString(); // Generate a new ID for the category
+
+            await _productService.AddCategoryAsync(id, category);
+            return Ok(new { message = "Category added successfully." });
+        }
+
+        // Update an existing category
+        [Authorize(Roles = "Administrator")]
+        [HttpPut("{id}/category/{categoryId}")]
+        public async Task<IActionResult> UpdateCategory(string id, string categoryId, [FromBody] Product.ProductCategoryDetails updatedCategory)
+        {
+            if (updatedCategory == null)
+            {
+                return BadRequest("Updated category cannot be null.");
+            }
+
+            await _productService.UpdateCategoryAsync(id, categoryId, updatedCategory);
+            return Ok(new { message = "Category updated successfully." });
+        }
+
+        // Delete a category
+        [Authorize(Roles = "Administrator")]
+        [HttpDelete("{id}/category/{categoryId}")]
+        public async Task<IActionResult> DeleteCategory(string id, string categoryId)
+        {
+            await _productService.DeleteCategoryAsync(id, categoryId);
+            return Ok(new { message = "Category deleted successfully." });
+        }
+
+        // Get all categories for a product
+        [HttpGet("{id}/category")]
+        public async Task<IActionResult> GetCategories(string id)
+        {
+            var categories = await _productService.GetCategoriesAsync(id);
+            return Ok(categories);
+        }
 
     }
 }
