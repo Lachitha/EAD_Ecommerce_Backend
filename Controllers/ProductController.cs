@@ -218,9 +218,30 @@ namespace MongoDbConsoleApp.Controllers
                 return NotFound("Product not found.");
             }
 
-            return Ok(product);
-        }
+            // If the user is a Customer, they should only see active products
+            if (User.IsInRole("Customer") && !product.IsActive)
+            {
+                return NotFound("Product is not available.");
+            }
 
+            var categories = await _categoryService.GetCategoriesByIdsAsync(product.CategoryIds);
+            var productResponse = new
+            {
+                product.Id,
+                product.Name,
+                product.Description,
+                product.Price,
+                product.Quantity,
+                product.Stock,
+                product.IsActive,
+                product.LowStockThreshold,
+                product.VendorId,
+                Categories = categories,
+                Image = ConvertImageFromBase64(product.ImageBase64)
+            };
+
+            return Ok(productResponse);
+        }
         [Authorize(Roles = "Vendor")]
         [HttpGet("vendor/{id}")]
         public async Task<IActionResult> GetVendorProductById(string id)
@@ -257,7 +278,7 @@ namespace MongoDbConsoleApp.Controllers
 
             if (products == null || !products.Any())
             {
-                return NotFound("No products found for this vendor.");
+                return Ok(new List<object>());
             }
 
             var productResponses = await GetProductResponses(products);
