@@ -90,6 +90,23 @@ namespace MongoDbConsoleApp.Services
             return await _users.Find(u => u.Role == role).ToListAsync();  // Retrieves users based on their role
         }
 
+        // New method: Get all inactive users
+        public async Task<List<User>> GetInactiveUsersAsync()
+        {
+            return await _users.Find(u => !u.IsActive).ToListAsync();  // Retrieves all inactive users
+        }
 
+        // New method: Reactivate a user
+        public async Task ReactivateUserAsync(string userId)
+        {
+            var user = await FindByIdAsync(userId);
+            if (user == null)
+            {
+                throw new ArgumentException("User not found.", nameof(userId));
+            }
+
+            user.IsActive = true;  // Set account status to active
+            await UpdateUserAsync(user);  // Save the changes
+        }
     }
 }

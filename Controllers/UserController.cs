@@ -296,7 +296,7 @@ namespace MongoDbConsoleApp.Controllers
         }
 
         [Authorize(Roles = Role.Customer)]
-        [HttpPost("deactivate")]
+        [HttpPut("deactivate")]
         public async Task<IActionResult> DeactivateAccount()
         {
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
@@ -317,6 +317,33 @@ namespace MongoDbConsoleApp.Controllers
             await _userService.UpdateUserAsync(existingUser);
             return Ok(new { message = "Account deactivated successfully." });
         }
+
+
+        [Authorize(Roles = Role.Administrator)]
+        [HttpGet("inactive-users")]
+        public async Task<IActionResult> GetInactiveUsers()
+        {
+            var inactiveUsers = await _userService.GetInactiveUsersAsync();
+            return Ok(inactiveUsers); // Returns all details of inactive users
+        }
+
+        [Authorize(Roles = Role.Administrator)]
+        [HttpPut("reactivate/{userId}")]
+        public async Task<IActionResult> ReactivateAccount(string userId)
+        {
+            var existingUser = await _userService.FindByIdAsync(userId);
+            if (existingUser == null)
+            {
+                return NotFound("User not found.");
+            }
+
+            // Reactivate the account
+            existingUser.IsActive = true; // Set account status to active
+            await _userService.UpdateUserAsync(existingUser);
+
+            return Ok(new { message = "Account reactivated successfully." });
+        }
+
 
     }
 }
