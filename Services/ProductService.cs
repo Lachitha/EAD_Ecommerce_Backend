@@ -28,7 +28,6 @@ namespace MongoDbConsoleApp.Services
             }
             catch (Exception ex)
             {
-                // Log the exception (implement logging as needed)
                 throw new Exception("Error occurred while creating the product.", ex);
             }
         }
@@ -46,7 +45,6 @@ namespace MongoDbConsoleApp.Services
             }
             catch (Exception ex)
             {
-                // Log the exception (implement logging as needed)
                 throw new Exception("Error occurred while fetching the product.", ex);
             }
         }
@@ -62,7 +60,6 @@ namespace MongoDbConsoleApp.Services
             }
             catch (Exception ex)
             {
-                // Log the exception (implement logging as needed)
                 throw new Exception("Error occurred while fetching products.", ex);
             }
         }
@@ -75,7 +72,6 @@ namespace MongoDbConsoleApp.Services
             }
             catch (Exception ex)
             {
-                // Log the exception (implement logging as needed)
                 throw new Exception("Error occurred while fetching active products.", ex);
             }
         }
@@ -88,17 +84,41 @@ namespace MongoDbConsoleApp.Services
             }
             catch (Exception ex)
             {
-                // Log the exception (implement logging as needed)
                 throw new Exception("Error occurred while fetching inactive products.", ex);
+            }
+        }
+
+        public async Task<Product?> GetVendorProductByIdAsync(string productId, string vendorId)
+        {
+            try
+            {
+                return await _products.Find(p => p.Id == productId && p.VendorId == vendorId).FirstOrDefaultAsync();
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("Error occurred while fetching the vendor's product.", ex);
+            }
+        }
+
+        public async Task<List<Product>> GetVendorProductsAsync(string vendorId)
+        {
+            if (string.IsNullOrEmpty(vendorId))
+            {
+                throw new ArgumentException("Vendor ID cannot be null or empty.", nameof(vendorId));
+            }
+
+            try
+            {
+                return await _products.Find(p => p.VendorId == vendorId).ToListAsync();
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("Error occurred while fetching vendor products.", ex);
             }
         }
 
         public async Task UpdateProductAsync(string id, Product product)
         {
-            if (string.IsNullOrEmpty(id))
-            {
-                throw new ArgumentException("ID cannot be null or empty.", nameof(id));
-            }
             if (product == null)
             {
                 throw new ArgumentNullException(nameof(product), "Product cannot be null.");
@@ -110,36 +130,24 @@ namespace MongoDbConsoleApp.Services
             }
             catch (Exception ex)
             {
-                // Log the exception (implement logging as needed)
                 throw new Exception("Error occurred while updating the product.", ex);
             }
         }
 
         public async Task DeleteProductAsync(string id)
         {
-            if (string.IsNullOrEmpty(id))
-            {
-                throw new ArgumentException("ID cannot be null or empty.", nameof(id));
-            }
-
             try
             {
                 await _products.DeleteOneAsync(p => p.Id == id);
             }
             catch (Exception ex)
             {
-                // Log the exception (implement logging as needed)
                 throw new Exception("Error occurred while deleting the product.", ex);
             }
         }
 
         public async Task ActivateProductAsync(string id)
         {
-            if (string.IsNullOrEmpty(id))
-            {
-                throw new ArgumentException("ID cannot be null or empty.", nameof(id));
-            }
-
             try
             {
                 var update = Builders<Product>.Update.Set(p => p.IsActive, true);
@@ -147,18 +155,12 @@ namespace MongoDbConsoleApp.Services
             }
             catch (Exception ex)
             {
-                // Log the exception (implement logging as needed)
                 throw new Exception("Error occurred while activating the product.", ex);
             }
         }
 
         public async Task DeactivateProductAsync(string id)
         {
-            if (string.IsNullOrEmpty(id))
-            {
-                throw new ArgumentException("ID cannot be null or empty.", nameof(id));
-            }
-
             try
             {
                 var update = Builders<Product>.Update.Set(p => p.IsActive, false);
@@ -166,30 +168,7 @@ namespace MongoDbConsoleApp.Services
             }
             catch (Exception ex)
             {
-                // Log the exception (implement logging as needed)
                 throw new Exception("Error occurred while deactivating the product.", ex);
-            }
-        }
-
-        public async Task<Product?> GetVendorProductByIdAsync(string id, string vendorId)
-        {
-            if (string.IsNullOrEmpty(id))
-            {
-                throw new ArgumentException("ID cannot be null or empty.", nameof(id));
-            }
-            if (string.IsNullOrEmpty(vendorId))
-            {
-                throw new ArgumentException("Vendor ID cannot be null or empty.", nameof(vendorId));
-            }
-
-            try
-            {
-                return await _products.Find(p => p.Id == id && p.VendorId == vendorId).FirstOrDefaultAsync();
-            }
-            catch (Exception ex)
-            {
-                // Log the exception (implement logging as needed)
-                throw new Exception("Error occurred while fetching the vendor product.", ex);
             }
         }
     }

@@ -240,5 +240,28 @@ namespace MongoDbConsoleApp.Controllers
 
             return Ok(product);
         }
+
+        [Authorize(Roles = "Vendor")]
+        [HttpGet("vendor/products")]
+        public async Task<IActionResult> GetVendorProducts()
+        {
+            var vendorId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            if (string.IsNullOrEmpty(vendorId))
+            {
+                return Unauthorized("Vendor ID not found in token.");
+            }
+
+            // Fetch only the products that belong to the authenticated vendor
+            var products = await _productService.GetVendorProductsAsync(vendorId);
+
+            if (products == null || !products.Any())
+            {
+                return NotFound("No products found for this vendor.");
+            }
+
+            var productResponses = await GetProductResponses(products);
+            return Ok(productResponses);
+        }
     }
 }

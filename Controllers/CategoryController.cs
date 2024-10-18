@@ -71,7 +71,7 @@ namespace MongoDbConsoleApp.Controllers
             return Ok(new { message = "Category deleted successfully." });
         }
 
-        [Authorize(Roles = "Administrator,Customer")]
+        [Authorize(Roles = "Administrator,Customer,Vendor")]
         [HttpGet]
         public async Task<IActionResult> GetAllCategories()
         {
@@ -79,7 +79,7 @@ namespace MongoDbConsoleApp.Controllers
             return Ok(categories);
         }
 
-        [Authorize(Roles = "Administrator,Customer")]
+        [Authorize(Roles = "Administrator,Customer,Vendor")]
         [HttpGet("{id}")]
         public async Task<IActionResult> GetCategoryById(string id)
         {
