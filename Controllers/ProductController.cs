@@ -1,13 +1,11 @@
 using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
-using MongoDB.Bson;
 using MongoDbConsoleApp.Models;
 using MongoDbConsoleApp.Services;
-using System.IO;
+using System.Linq;
 using System.Security.Claims;
 using System.Threading.Tasks;
-using MongoDB.Bson;
+using System.Collections.Generic;
 
 namespace MongoDbConsoleApp.Controllers
 {
@@ -16,10 +14,12 @@ namespace MongoDbConsoleApp.Controllers
     public class ProductController : ControllerBase
     {
         private readonly ProductService _productService;
+        private readonly CategoryService _categoryService;
 
-        public ProductController(ProductService productService)
+        public ProductController(ProductService productService, CategoryService categoryService)
         {
             _productService = productService;
+            _categoryService = categoryService;
         }
 
         [Authorize(Roles = "Vendor")]
@@ -33,7 +33,23 @@ namespace MongoDbConsoleApp.Controllers
                 return Unauthorized("Vendor ID not found in token.");
             }
 
-            // Create a new product from the request
+            if (request.Quantity <= 0)
+            {
+                return BadRequest("Quantity must be greater than zero.");
+            }
+            if (request.CategoryIds == null || !request.CategoryIds.Any())
+            {
+                return BadRequest("CategoryIds cannot be empty.");
+            }
+
+            // Validate category IDs
+            var existingCategoryIds = (await _categoryService.GetAllCategoriesAsync()).Select(c => c.Id).ToList();
+            if (request.CategoryIds.Any(c => !existingCategoryIds.Contains(c)))
+            {
+                return BadRequest("One or more category IDs are invalid.");
+            }
+
+            // Create a new product
             var product = new Product
             {
                 VendorId = vendorId,
@@ -43,18 +59,13 @@ namespace MongoDbConsoleApp.Controllers
                 Quantity = request.Quantity,
                 Stock = request.Quantity,
                 ImageBase64 = request.ImageBase64,
-                Categories = request.Categories // Directly assign the list of categories from the request
+                CategoryIds = request.CategoryIds
             };
 
-            if (product.Quantity <= 0)
-            {
-                return BadRequest("Quantity must be greater than zero.");
-            }
-
             await _productService.CreateProductAsync(product);
-
-            return Ok(new { message = "Product created successfully.", productId = product.Id });
+            return CreatedAtAction(nameof(GetProductById), new { id = product.Id }, new { message = "Product created successfully.", productId = product.Id });
         }
+
         [Authorize(Roles = "Vendor")]
         [HttpPut("{id}")]
         public async Task<IActionResult> UpdateProduct(string id, [FromBody] Product product)
@@ -70,7 +81,7 @@ namespace MongoDbConsoleApp.Controllers
                 return NotFound("Product not found.");
             }
 
-            product.Id = id; // Ensure the product ID matches the one being updated
+            product.Id = id;
             await _productService.UpdateProductAsync(id, product);
             return Ok(new { message = "Product updated successfully." });
         }
@@ -85,25 +96,23 @@ namespace MongoDbConsoleApp.Controllers
                 return NotFound("Product not found.");
             }
 
-            // Validate additional quantity
             if (additionalQuantity <= 0)
             {
                 return BadRequest("Quantity to add must be greater than zero.");
             }
 
-            // Update stock by adding the new quantity
             product.Stock += additionalQuantity;
             product.Quantity += additionalQuantity;
 
             await _productService.UpdateProductAsync(id, product);
 
-            // Check for low stock alert
+            var message = "Quantity updated successfully.";
             if (product.Stock < product.LowStockThreshold)
             {
-                return Ok(new { message = "Quantity updated successfully.", lowStockAlert = "Product is below the low stock threshold!" });
+                message += " Product is below the low stock threshold!";
             }
 
-            return Ok(new { message = "Quantity updated successfully." });
+            return Ok(new { message });
         }
 
         [Authorize(Roles = "Vendor")]
@@ -141,90 +150,63 @@ namespace MongoDbConsoleApp.Controllers
         public async Task<IActionResult> GetAllProducts()
         {
             var products = await _productService.GetAllProductsAsync();
-
             if (User.IsInRole("Customer"))
             {
-                // Filter for customers to include only activated products
                 products = products.Where(p => p.IsActive).ToList();
             }
 
-            var productResponses = products.Select(p => new
-            {
-                p.Id,
-                p.Name,
-                p.Description,
-                p.Price,
-                p.Quantity,
-                p.Stock,
-                p.IsActive,
-                p.LowStockThreshold,
-                p.VendorId,
-                p.Categories,
-                Image = ConvertImageFromBase64(p.ImageBase64) // Convert Base64 image to image format
-            }).ToList();
-
-            return Ok(productResponses); // Return the modified list of products
+            var productResponses = await GetProductResponses(products);
+            return Ok(productResponses);
         }
 
         [Authorize(Roles = "Administrator")]
         [HttpGet("active")]
         public async Task<IActionResult> GetActiveProducts()
         {
-            var products = await _productService.GetAllProductsAsync();
-
-            var activeProducts = products.Where(p => p.IsActive).Select(p => new
-            {
-                p.Id,
-                p.Name,
-                p.Description,
-                p.Price,
-                p.Quantity,
-                p.Stock,
-                p.IsActive,
-                p.LowStockThreshold,
-                p.VendorId,
-                p.Categories,
-                Image = ConvertImageFromBase64(p.ImageBase64) // Convert Base64 image to image format
-            }).ToList();
-
-            return Ok(activeProducts); // Return the list of active products
+            var products = await _productService.GetActiveProductsAsync();
+            var activeProducts = await GetProductResponses(products);
+            return Ok(activeProducts);
         }
 
         [Authorize(Roles = "Administrator")]
         [HttpGet("inactive")]
         public async Task<IActionResult> GetInactiveProducts()
         {
-            var products = await _productService.GetAllProductsAsync();
+            var products = await _productService.GetInactiveProductsAsync();
+            var inactiveProducts = await GetProductResponses(products);
+            return Ok(inactiveProducts);
+        }
 
-            var inactiveProducts = products.Where(p => !p.IsActive).Select(p => new
+        private async Task<List<object>> GetProductResponses(IEnumerable<Product> products)
+        {
+            var productResponses = new List<object>();
+
+            foreach (var p in products)
             {
-                p.Id,
-                p.Name,
-                p.Description,
-                p.Price,
-                p.Quantity,
-                p.Stock,
-                p.IsActive,
-                p.LowStockThreshold,
-                p.VendorId,
-                p.Categories,
-                Image = ConvertImageFromBase64(p.ImageBase64) // Convert Base64 image to image format
-            }).ToList();
+                var categories = await _categoryService.GetCategoriesByIdsAsync(p.CategoryIds);
+                productResponses.Add(new
+                {
+                    p.Id,
+                    p.Name,
+                    p.Description,
+                    p.Price,
+                    p.Quantity,
+                    p.Stock,
+                    p.IsActive,
+                    p.LowStockThreshold,
+                    p.VendorId,
+                    Categories = categories,
+                    Image = ConvertImageFromBase64(p.ImageBase64)
+                });
+            }
 
-            return Ok(inactiveProducts); // Return the list of inactive products
+            return productResponses;
         }
 
         private string ConvertImageFromBase64(string? base64Image)
         {
-            if (string.IsNullOrEmpty(base64Image))
-            {
-                return string.Empty; // Return an empty string if no image is provided
-            }
-
-            // Convert base64 string to image file URL (data URL)
-            return $"data:image/jpeg;base64,{base64Image}"; // Use "image/png" if the image is PNG
+            return string.IsNullOrEmpty(base64Image) ? string.Empty : $"data:image/jpeg;base64,{base64Image}";
         }
-
 
         [Authorize(Roles = "Administrator,Customer")]
         [HttpGet("{id}")]
@@ -236,89 +218,27 @@ namespace MongoDbConsoleApp.Controllers
                 return NotFound("Product not found.");
             }
 
-            // Convert the image to base64 if it exists
-            if (!string.IsNullOrEmpty(product.ImageBase64))
-            {
-                product.ImageBase64 = ConvertToBase64(product.ImageBase64);
-            }
-
             return Ok(product);
         }
-
-        // Convert image to base64 format (if needed)
-        private string ConvertToBase64(string imageBase64)
-        {
-            // Assuming the image is already in base64, this method could be used for additional processing
-            return imageBase64;
-        }
-
 
         [Authorize(Roles = "Vendor")]
         [HttpGet("vendor/{id}")]
         public async Task<IActionResult> GetVendorProductById(string id)
         {
-            var vendorId = User.FindFirst("id")?.Value; // Assuming the vendor ID is stored in the JWT token
+            var vendorId = User.FindFirst("id")?.Value;
 
             if (string.IsNullOrEmpty(vendorId))
             {
-                return Unauthorized("Vendor ID is not available in the token.");
+                return Unauthorized("Vendor ID not found in token.");
             }
 
-            var product = await _productService.GetVendorProductByIdAsync(vendorId, id);
+            var product = await _productService.GetVendorProductByIdAsync(id, vendorId);
             if (product == null)
             {
-                return NotFound("Product not found or does not belong to the vendor.");
+                return NotFound("Product not found.");
             }
 
             return Ok(product);
         }
-
-        [Authorize(Roles = "Administrator")]
-        [HttpPost("{id}/category")]
-        public async Task<IActionResult> AddCategory(string id, [FromBody] Product.ProductCategoryDetails category)
-        {
-            if (category == null)
-            {
-                return BadRequest("Category cannot be null.");
-            }
-
-            // Ensure the category has an ID
-            category.Id = ObjectId.GenerateNewId().ToString(); // Generate a new ID for the category
-
-            await _productService.AddCategoryAsync(id, category);
-            return Ok(new { message = "Category added successfully." });
-        }
-
-        // Update an existing category
-        [Authorize(Roles = "Administrator")]
-        [HttpPut("{id}/category/{categoryId}")]
-        public async Task<IActionResult> UpdateCategory(string id, string categoryId, [FromBody] Product.ProductCategoryDetails updatedCategory)
-        {
-            if (updatedCategory == null)
-            {
-                return BadRequest("Updated category cannot be null.");
-            }
-
-            await _productService.UpdateCategoryAsync(id, categoryId, updatedCategory);
-            return Ok(new { message = "Category updated successfully." });
-        }
-
-        // Delete a category
-        [Authorize(Roles = "Administrator")]
-        [HttpDelete("{id}/category/{categoryId}")]
-        public async Task<IActionResult> DeleteCategory(string id, string categoryId)
-        {
-            await _productService.DeleteCategoryAsync(id, categoryId);
-            return Ok(new { message = "Category deleted successfully." });
-        }
-
-        // Get all categories for a product
-        [HttpGet("{id}/category")]
-        public async Task<IActionResult> GetCategories(string id)
-        {
-            var categories = await _productService.GetCategoriesAsync(id);
-            return Ok(categories);
-        }
-
     }
 }

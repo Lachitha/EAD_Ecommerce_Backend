@@ -42,6 +42,7 @@ builder.Services.AddSingleton<MongoDbService>(sp =>
 builder.Services.AddScoped<UserService>();
 builder.Services.AddScoped<ProductService>(); // Register ProductService
 builder.Services.AddScoped<OrderService>(); // Register OrderService
+builder.Services.AddScoped<CategoryService>();
 
 // Register JwtHelper with required parameters
 builder.Services.AddSingleton<JwtHelper>(sp =>

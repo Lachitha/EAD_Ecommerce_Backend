@@ -26,26 +26,15 @@ namespace MongoDbConsoleApp.Models
         public string VendorId { get; set; } = string.Empty; // Associate product with a vendor
 
         // Embedded ProductCategory object
-        public List<ProductCategoryDetails> Categories { get; set; } = new List<ProductCategoryDetails>();
+        public List<string> CategoryIds { get; set; } = new List<string>();
 
-        public string? ImageBase64 { get; set; } // Base64 string to store image
+        public string ImageBase64 { get; set; } // Base64 string to store image
 
-        public class ProductCategoryDetails
-        {
-            public object Name { get; internal set; }
-            public object Description { get; internal set; }
-            public string Id { get; internal set; }
-        }
+
     }
 
 
 
-    public class ProductCategoryDetails
-    {
-        public string Id { get; set; } // New property
-        public string Name { get; set; } // New property
-        public string Description { get; set; } // New property
-    }
 
 
 
