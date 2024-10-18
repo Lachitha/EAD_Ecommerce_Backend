@@ -149,7 +149,8 @@ namespace MongoDbConsoleApp.Controllers
                 existingUser.LastName,
                 existingUser.Username,
                 existingUser.Role,
-                existingUser.Email
+                existingUser.Email,
+                existingUser.Address
             };
 
             return Ok(userDetails);
