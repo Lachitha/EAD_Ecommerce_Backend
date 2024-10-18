@@ -319,7 +319,7 @@ namespace MongoDbConsoleApp.Controllers
         }
 
 
-        [Authorize(Roles = Role.Administrator)]
+        [Authorize(Roles = "Administrator,CSR")]
         [HttpGet("inactive-users")]
         public async Task<IActionResult> GetInactiveUsers()
         {
@@ -327,7 +327,7 @@ namespace MongoDbConsoleApp.Controllers
             return Ok(inactiveUsers); // Returns all details of inactive users
         }
 
-        [Authorize(Roles = Role.Administrator)]
+        [Authorize(Roles = Role.CSR)]
         [HttpPut("reactivate/{userId}")]
         public async Task<IActionResult> ReactivateAccount(string userId)
         {
