@@ -19,7 +19,7 @@ namespace MongoDbConsoleApp.Models
         public DateTime OrderDate { get; set; } = DateTime.UtcNow;
 
         public string Status { get; set; } = OrderStatus.Processing;
-
+        public decimal Total { get; set; }
         public string? CancellationNote { get; set; }
 
         public bool IsFullyDelivered()
