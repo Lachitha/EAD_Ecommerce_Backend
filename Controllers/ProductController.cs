@@ -284,5 +284,46 @@ namespace MongoDbConsoleApp.Controllers
             var productResponses = await GetProductResponses(products);
             return Ok(productResponses);
         }
+        [Authorize(Roles = "Administrator,Customer")]
+        [HttpGet("{id}")]
+        public async Task<IActionResult> GetProductByIdAsync(string id)
+        {
+            // Fetch the product using the product service
+            var product = await _productService.GetProductByIdAsync(id);
+            if (product == null)
+            {
+                return NotFound("Product not found.");
+            }
+
+            // If the user is a Customer, ensure they only see active products
+            if (User.IsInRole("Customer") && !product.IsActive)
+            {
+                return NotFound("Product is not available.");
+            }
+
+            // Retrieve category details for the product
+            var categories = await _categoryService.GetCategoriesByIdsAsync(product.CategoryIds);
+
+            // Prepare the product response with necessary details
+            var productResponse = new
+            {
+                product.Id,
+                product.Name,
+                product.Description,
+                product.Price,
+                product.Quantity,
+                product.Stock,
+                product.IsActive,
+                product.LowStockThreshold,
+                product.VendorId,
+                Categories = categories,
+                Image = ConvertImageFromBase64(product.ImageBase64) // Convert image from Base64
+            };
+
+            // Return the product details as a response
+            return Ok(productResponse);
+        }
+
+
     }
 }
