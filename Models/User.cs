@@ -42,4 +42,11 @@ namespace MongoDbConsoleApp.Models
         public string Comment { get; set; } = string.Empty;  // Customer's comment
         public DateTime CreatedAt { get; set; } = DateTime.UtcNow;  // Timestamp for the rating
     }
+
+    public class PasswordResetRequest
+    {
+
+        public string CurrentPassword { get; set; }
+        public string NewPassword { get; set; }
+    }
 }

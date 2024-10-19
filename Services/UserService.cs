@@ -113,5 +113,33 @@ namespace MongoDbConsoleApp.Services
         {
             return await _users.Find(u => roles.Contains(u.Role)).ToListAsync();
         }
+
+
+        public async Task<bool> ResetPasswordAsync(string userId, string currentPassword, string newPassword)
+        {
+            var user = await FindByIdAsync(userId);
+            if (user == null)
+            {
+                throw new ArgumentException("User not found.", nameof(userId));
+            }
+
+            // Verify the current password
+            if (!BCrypt.Net.BCrypt.Verify(currentPassword, user.PasswordHash))
+            {
+                return false; // Current password is incorrect
+            }
+
+            // Ensure the new password is different from the current one
+            if (BCrypt.Net.BCrypt.Verify(newPassword, user.PasswordHash))
+            {
+                throw new InvalidOperationException("The new password cannot be the same as the current password.");
+            }
+
+            // Hash the new password and update the user's password
+            user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(newPassword);
+            await UpdateUserAsync(user);
+
+            return true; // Password reset successful
+        }
     }
 }

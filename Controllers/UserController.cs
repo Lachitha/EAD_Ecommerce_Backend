@@ -355,6 +355,52 @@ namespace MongoDbConsoleApp.Controllers
             return Ok(users);
         }
 
+        [Authorize]
+        [HttpPut("reset-password")]
+        public async Task<IActionResult> ResetPassword([FromBody] PasswordResetRequest passwordResetRequest)
+        {
+            // Validate the input
+            if (!ModelState.IsValid ||
+                string.IsNullOrWhiteSpace(passwordResetRequest.CurrentPassword) ||
+                string.IsNullOrWhiteSpace(passwordResetRequest.NewPassword))
+            {
+                return BadRequest("Current and new passwords are required.");
+            }
+
+            // Get the user ID from the JWT token
+            var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userId))
+            {
+                return Unauthorized("Invalid token.");
+            }
+
+            // Find the user by ID
+            var existingUser = await _userService.FindByIdAsync(userId);
+            if (existingUser == null)
+            {
+                return NotFound("User not found.");
+            }
+
+            // Verify the current password
+            if (!BCrypt.Net.BCrypt.Verify(passwordResetRequest.CurrentPassword, existingUser.PasswordHash))
+            {
+                return Unauthorized("Current password is incorrect.");
+            }
+
+            // Ensure the new password is different from the current one
+            if (BCrypt.Net.BCrypt.Verify(passwordResetRequest.NewPassword, existingUser.PasswordHash))
+            {
+                return BadRequest("The new password cannot be the same as the current password.");
+            }
+
+            // Hash the new password and update the user's password
+            existingUser.PasswordHash = BCrypt.Net.BCrypt.HashPassword(passwordResetRequest.NewPassword);
+            await _userService.UpdateUserAsync(existingUser);
+
+            return Ok(new { message = "Password reset successfully." });
+        }
+
+
 
     }
 }
