@@ -50,15 +50,15 @@ namespace MongoDbConsoleApp.Controllers
                 return Unauthorized("User ID not found in token.");
             }
 
-            if (request.Quantity <= 0)
+            if (request.quantity <= 0)
             {
                 return BadRequest("Quantity must be greater than zero.");
             }
 
             try
             {
-                await _cartService.AddToCart(userId, request.ProductId, request.Quantity);
-                return Ok("Product added to cart.");
+                await _cartService.AddToCart(userId, request.ProductId, request.quantity);
+                return Ok(new { message = "Product added to cart." });
             }
             catch (Exception ex)
             {
@@ -120,7 +120,7 @@ namespace MongoDbConsoleApp.Controllers
     public class AddToCartRequest
     {
         public string ProductId { get; set; }
-        public int Quantity { get; set; }
+        public int quantity { get; set; }
     }
 
     public class RemoveFromCartRequest

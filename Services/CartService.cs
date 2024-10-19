@@ -31,7 +31,7 @@ namespace MongoDbConsoleApp.Services
 
             if (product == null) throw new Exception("Product not found");
             if (quantity <= 0) throw new Exception("Quantity must be greater than zero.");
-            if (product.Quantity < quantity) throw new Exception("Insufficient stock available.");
+            if (product.Stock < quantity) throw new Exception("Insufficient stock available.");
 
             var cartItem = cart.Items.FirstOrDefault(i => i.ProductId == productId);
             if (cartItem != null)
@@ -77,20 +77,21 @@ namespace MongoDbConsoleApp.Services
             var cartItem = cart.Items.FirstOrDefault(i => i.ProductId == productId);
             if (cartItem == null) throw new Exception("Product not in cart");
 
-            // Update stock based on the new quantity
-            if (newQuantity < cartItem.Quantity)
+            var product = await _productService.GetProductByIdAsync(productId);
+            if (product == null) throw new Exception("Product not found");
+
+            // Calculate the quantity difference
+            int quantityDifference = newQuantity - cartItem.Quantity;
+
+            if (quantityDifference > 0) // Increasing quantity
             {
-                await UpdateProductStock(productId, cartItem.Quantity - newQuantity); // Add stock if reducing quantity
-            }
-            else if (newQuantity > cartItem.Quantity)
-            {
-                var product = await _productService.GetProductByIdAsync(productId);
-                if (product == null) throw new Exception("Product not found");
-                if (product.Quantity < (newQuantity - cartItem.Quantity)) throw new Exception("Insufficient stock available.");
-                await UpdateProductStock(productId, newQuantity - cartItem.Quantity); // Deduct stock if increasing quantity
+                if (product.Stock < quantityDifference) throw new Exception("Insufficient stock available.");
             }
 
-            cartItem.Quantity = newQuantity;
+            // Update product stock
+            await UpdateProductStock(productId, -quantityDifference);
+
+            cartItem.Quantity = newQuantity; // Update the quantity in cart
 
             await _cartCollection.ReplaceOneAsync(c => c.UserId == userId, cart, new ReplaceOptions { IsUpsert = true });
         }
@@ -100,7 +101,7 @@ namespace MongoDbConsoleApp.Services
             var product = await _productService.GetProductByIdAsync(productId);
             if (product == null) throw new Exception("Product not found.");
 
-            product.Quantity += quantityChange; // Update product stock
+            product.Stock += quantityChange; // Update product stock
             await _productService.UpdateProductAsync(productId, product); // Persist changes in the product
         }
     }
