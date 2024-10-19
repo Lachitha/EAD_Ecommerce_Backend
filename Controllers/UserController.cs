@@ -344,6 +344,17 @@ namespace MongoDbConsoleApp.Controllers
             return Ok(new { message = "Account reactivated successfully." });
         }
 
+        [Authorize(Roles = Role.Administrator)]
+        [HttpGet("special-users")]
+        public async Task<IActionResult> GetSpecialUsers()
+        {
+            // Fetch users with roles: Administrator, Vendor, and CSR
+            var roles = new[] { Role.Administrator, Role.Vendor, Role.CSR };
+            var users = await _userService.GetUsersByRolesAsync(roles);
+
+            return Ok(users);
+        }
+
 
     }
 }

@@ -108,5 +108,10 @@ namespace MongoDbConsoleApp.Services
             user.IsActive = true;  // Set account status to active
             await UpdateUserAsync(user);  // Save the changes
         }
+
+        public async Task<List<User>> GetUsersByRolesAsync(params string[] roles)
+        {
+            return await _users.Find(u => roles.Contains(u.Role)).ToListAsync();
+        }
     }
 }
