@@ -171,5 +171,35 @@ namespace MongoDbConsoleApp.Services
                 throw new Exception("Error occurred while deactivating the product.", ex);
             }
         }
+        public async Task<List<Product>> GetVendorLowStockProductsAsync(string vendorId)
+        {
+            if (string.IsNullOrEmpty(vendorId))
+            {
+                throw new ArgumentException("Vendor ID cannot be null or empty.", nameof(vendorId));
+            }
+
+            try
+            {
+                return await _products.Find(p => p.VendorId == vendorId && p.Stock < p.LowStockThreshold).ToListAsync();
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("Error occurred while fetching low-stock vendor products.", ex);
+            }
+        }
+
+        // New method to get all low-stock products for the administrator
+        public async Task<List<Product>> GetAllLowStockProductsAsync()
+        {
+            try
+            {
+                return await _products.Find(p => p.Stock < p.LowStockThreshold).ToListAsync();
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("Error occurred while fetching all low-stock products.", ex);
+            }
+        }
+
     }
 }

@@ -27,17 +27,18 @@ namespace MongoDbConsoleApp.Controllers
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value; // Adjust based on your JWT claim type
             if (string.IsNullOrEmpty(userId))
             {
-                return Unauthorized("User ID not found in token.");
+                return Unauthorized(new { message = "User ID not found in token." });
             }
 
             var cart = await _cartService.GetCartByUserId(userId);
             if (cart == null)
             {
-                return NotFound("Cart not found.");
+                return NotFound(new { message = "Cart not found." });
             }
 
             return Ok(cart);
         }
+
 
         // Add product to cart
         [Authorize(Roles = "Customer")]
@@ -47,12 +48,12 @@ namespace MongoDbConsoleApp.Controllers
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value; // Adjust based on your JWT claim type
             if (string.IsNullOrEmpty(userId))
             {
-                return Unauthorized("User ID not found in token.");
+                return Unauthorized(new { message = "User ID not found in token." });
             }
 
             if (request.quantity <= 0)
             {
-                return BadRequest("Quantity must be greater than zero.");
+                return BadRequest(new { message = "Quantity must be greater than zero." });
             }
 
             try
@@ -62,7 +63,7 @@ namespace MongoDbConsoleApp.Controllers
             }
             catch (Exception ex)
             {
-                return BadRequest(ex.Message);
+                return BadRequest(new { message = " " });
             }
         }
 

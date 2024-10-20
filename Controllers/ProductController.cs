@@ -324,6 +324,45 @@ namespace MongoDbConsoleApp.Controllers
             return Ok(productResponse);
         }
 
+        [Authorize(Roles = "Vendor")]
+        [HttpGet("vendor/lowstock")]
+        public async Task<IActionResult> GetVendorLowStockProducts()
+        {
+            var vendorId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+            if (string.IsNullOrEmpty(vendorId))
+            {
+                return Unauthorized("Vendor ID not found in token.");
+            }
+
+            // Fetch only the low-stock products for the authenticated vendor
+            var lowStockProducts = await _productService.GetVendorLowStockProductsAsync(vendorId);
+
+            if (lowStockProducts == null || !lowStockProducts.Any())
+            {
+                return Ok(new List<object>()); // Return empty list if no low-stock products found
+            }
+
+            var productResponses = await GetProductResponses(lowStockProducts);
+            return Ok(productResponses);
+        }
+
+        [Authorize(Roles = "Administrator")]
+        [HttpGet("admin/lowstock")]
+        public async Task<IActionResult> GetAllLowStockProducts()
+        {
+            // Fetch all low-stock products
+            var lowStockProducts = await _productService.GetAllLowStockProductsAsync();
+
+            if (lowStockProducts == null || !lowStockProducts.Any())
+            {
+                return Ok(new List<object>()); // Return empty list if no low-stock products found
+            }
+
+            var productResponses = await GetProductResponses(lowStockProducts);
+            return Ok(productResponses);
+        }
+
 
     }
 }
