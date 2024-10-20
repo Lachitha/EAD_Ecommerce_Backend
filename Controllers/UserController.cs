@@ -63,7 +63,7 @@ namespace MongoDbConsoleApp.Controllers
             }
 
             // For roles other than Customer (e.g., Vendor or Administrator)
-            if (user.Role == Role.Vendor || user.Role == Role.Administrator)
+            if (user.Role == Role.Vendor || user.Role == Role.Administrator || user.Role == Role.CSR)
             {
                 // Ensure the logged-in user is an Administrator
                 if (!User.IsInRole(Role.Administrator))
