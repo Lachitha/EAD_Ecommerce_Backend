@@ -42,7 +42,8 @@ namespace MongoDbConsoleApp.Controllers
             var cartDetails = new CartDetailsDto
             {
                 UserId = cart.UserId,
-                Items = new List<CartItemDetailsDto>()
+                Items = new List<CartItemDetailsDto>(),
+                TotalAmount = 0
             };
 
             // Fetch product details for each item in the cart
@@ -51,14 +52,17 @@ namespace MongoDbConsoleApp.Controllers
                 var product = await _productService.GetProductByIdAsync(cartItem.ProductId);
                 if (product != null)
                 {
+                    var itemTotal = cartItem.Quantity * cartItem.Price;
                     cartDetails.Items.Add(new CartItemDetailsDto
                     {
                         ProductId = cartItem.ProductId,
                         Quantity = cartItem.Quantity,
                         Price = cartItem.Price,
-                        Total = cartItem.Quantity * cartItem.Price, // Calculate total
+                        Total = itemTotal,
+                        // Calculate total
                         ProductDetails = product // Include product details
                     });
+                    cartDetails.TotalAmount += itemTotal;
                 }
             }
 
@@ -164,6 +168,7 @@ namespace MongoDbConsoleApp.Controllers
     public class CartDetailsDto
     {
         public string UserId { get; set; }
+        public decimal TotalAmount { get; set; }
         public List<CartItemDetailsDto> Items { get; set; }
     }
 
