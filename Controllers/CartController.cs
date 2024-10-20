@@ -2,7 +2,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MongoDbConsoleApp.Models;
 using MongoDbConsoleApp.Services;
-using System.Linq;
+using System.Collections.Generic;
 using System.Security.Claims;
 using System.Threading.Tasks;
 
@@ -13,32 +13,57 @@ namespace MongoDbConsoleApp.Controllers
     public class CartController : ControllerBase
     {
         private readonly CartService _cartService;
+        private readonly ProductService _productService; // Added to fetch product details
 
-        public CartController(CartService cartService)
+        public CartController(CartService cartService, ProductService productService)
         {
             _cartService = cartService;
+            _productService = productService;
         }
 
         // Get cart by userId from JWT
         [Authorize(Roles = "Customer")]
         [HttpGet]
-        public async Task<ActionResult<Cart>> GetCart()
+        public async Task<ActionResult<CartDetailsDto>> GetCart()
         {
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value; // Adjust based on your JWT claim type
             if (string.IsNullOrEmpty(userId))
             {
-                return Unauthorized(new { message = "User ID not found in token." });
+                return Unauthorized("User ID not found in token.");
             }
 
             var cart = await _cartService.GetCartByUserId(userId);
             if (cart == null)
             {
-                return NotFound(new { message = "Cart not found." });
+                return NotFound("Cart not found.");
             }
 
-            return Ok(cart);
-        }
+            // Create a list to hold product details
+            var cartDetails = new CartDetailsDto
+            {
+                UserId = cart.UserId,
+                Items = new List<CartItemDetailsDto>()
+            };
 
+            // Fetch product details for each item in the cart
+            foreach (var cartItem in cart.Items)
+            {
+                var product = await _productService.GetProductByIdAsync(cartItem.ProductId);
+                if (product != null)
+                {
+                    cartDetails.Items.Add(new CartItemDetailsDto
+                    {
+                        ProductId = cartItem.ProductId,
+                        Quantity = cartItem.Quantity,
+                        Price = cartItem.Price,
+                        Total = cartItem.Quantity * cartItem.Price, // Calculate total
+                        ProductDetails = product // Include product details
+                    });
+                }
+            }
+
+            return Ok(cartDetails);
+        }
 
         // Add product to cart
         [Authorize(Roles = "Customer")]
@@ -48,22 +73,22 @@ namespace MongoDbConsoleApp.Controllers
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value; // Adjust based on your JWT claim type
             if (string.IsNullOrEmpty(userId))
             {
-                return Unauthorized(new { message = "User ID not found in token." });
+                return Unauthorized("User ID not found in token.");
             }
 
-            if (request.quantity <= 0)
+            if (request.Quantity <= 0)
             {
-                return BadRequest(new { message = "Quantity must be greater than zero." });
+                return BadRequest("Quantity must be greater than zero.");
             }
 
             try
             {
-                await _cartService.AddToCart(userId, request.ProductId, request.quantity);
+                await _cartService.AddToCart(userId, request.ProductId, request.Quantity);
                 return Ok(new { message = "Product added to cart." });
             }
             catch (Exception ex)
             {
-                return BadRequest(new { message = " " });
+                return BadRequest(ex.Message);
             }
         }
 
@@ -121,7 +146,7 @@ namespace MongoDbConsoleApp.Controllers
     public class AddToCartRequest
     {
         public string ProductId { get; set; }
-        public int quantity { get; set; }
+        public int Quantity { get; set; }
     }
 
     public class RemoveFromCartRequest
@@ -133,5 +158,21 @@ namespace MongoDbConsoleApp.Controllers
     {
         public string ProductId { get; set; }
         public int NewQuantity { get; set; }
+    }
+
+    // Define DTOs for cart details
+    public class CartDetailsDto
+    {
+        public string UserId { get; set; }
+        public List<CartItemDetailsDto> Items { get; set; }
+    }
+
+    public class CartItemDetailsDto
+    {
+        public string ProductId { get; set; }
+        public int Quantity { get; set; }
+        public decimal Price { get; set; }
+        public decimal Total { get; set; }
+        public Product ProductDetails { get; set; } // Include full product details
     }
 }

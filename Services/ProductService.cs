@@ -90,6 +90,11 @@ namespace MongoDbConsoleApp.Services
 
         public async Task<Product?> GetVendorProductByIdAsync(string productId, string vendorId)
         {
+            if (string.IsNullOrEmpty(productId) || string.IsNullOrEmpty(vendorId))
+            {
+                throw new ArgumentException("Product ID and Vendor ID cannot be null or empty.");
+            }
+
             try
             {
                 return await _products.Find(p => p.Id == productId && p.VendorId == vendorId).FirstOrDefaultAsync();
@@ -171,6 +176,7 @@ namespace MongoDbConsoleApp.Services
                 throw new Exception("Error occurred while deactivating the product.", ex);
             }
         }
+
         public async Task<List<Product>> GetVendorLowStockProductsAsync(string vendorId)
         {
             if (string.IsNullOrEmpty(vendorId))
@@ -201,5 +207,22 @@ namespace MongoDbConsoleApp.Services
             }
         }
 
+        // New method to get products by a list of IDs
+        public async Task<List<Product>> GetProductsByIdsAsync(List<string> productIds)
+        {
+            if (productIds == null || productIds.Count == 0)
+            {
+                throw new ArgumentException("Product IDs cannot be null or empty.", nameof(productIds));
+            }
+
+            try
+            {
+                return await _products.Find(p => productIds.Contains(p.Id)).ToListAsync();
+            }
+            catch (Exception ex)
+            {
+                throw new Exception("Error occurred while fetching products by IDs.", ex);
+            }
+        }
     }
 }

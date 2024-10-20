@@ -3,7 +3,6 @@ using MongoDB.Driver;
 using System;
 using System.Linq;
 using System.Threading.Tasks;
-using MongoDB.Bson;
 
 namespace MongoDbConsoleApp.Services
 {
@@ -29,10 +28,7 @@ namespace MongoDbConsoleApp.Services
         {
             var cart = await GetCartByUserId(userId) ?? new Cart { UserId = userId };
             var product = await _productService.GetProductByIdAsync(productId); // Use existing method to fetch product
-            if (string.IsNullOrEmpty(cart.Id))
-            {
-                cart.Id = ObjectId.GenerateNewId().ToString(); // Generate a new ObjectId
-            }
+
             if (product == null) throw new Exception("Product not found");
             if (quantity <= 0) throw new Exception("Quantity must be greater than zero.");
             if (product.Stock < quantity) throw new Exception("Insufficient stock available.");
