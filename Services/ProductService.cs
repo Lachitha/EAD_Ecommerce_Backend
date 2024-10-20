@@ -13,6 +13,7 @@ namespace MongoDbConsoleApp.Services
         public ProductService(MongoDbService database)
         {
             _products = database.GetCollection<Product>("Products");
+
         }
 
         public async Task CreateProductAsync(Product product)
@@ -224,5 +225,9 @@ namespace MongoDbConsoleApp.Services
                 throw new Exception("Error occurred while fetching products by IDs.", ex);
             }
         }
+
+
+
+
     }
 }

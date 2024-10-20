@@ -141,5 +141,17 @@ namespace MongoDbConsoleApp.Services
 
             return true; // Password reset successful
         }
+
+        public async Task<User> FindVendorByIdAsync(string vendorId)
+        {
+            return await _users.Find(user => user.Id == vendorId && user.Role == Role.Vendor).FirstOrDefaultAsync();
+        }
+
+        // Fetch vendor ratings and comments
+        public async Task<List<VendorRating>> GetVendorRatingsAndCommentsAsync(string vendorId)
+        {
+            var vendor = await _users.Find(u => u.Id == vendorId && u.Role == Role.Vendor).FirstOrDefaultAsync();
+            return vendor?.Ratings ?? new List<VendorRating>();
+        }
     }
 }

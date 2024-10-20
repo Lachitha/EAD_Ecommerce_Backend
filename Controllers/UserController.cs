@@ -400,6 +400,37 @@ namespace MongoDbConsoleApp.Controllers
 
             return Ok(new { message = "Password reset successfully." });
         }
+        [Authorize(Roles = Role.Customer)]
+        [HttpGet("vendor/{vendorId}")]
+        public async Task<IActionResult> GetVendorDetails(string vendorId)
+        {
+            // Fetch the vendor by ID
+            var vendor = await _userService.FindVendorByIdAsync(vendorId);
+            if (vendor == null)
+            {
+                return NotFound("Vendor not found.");
+            }
+
+            // Fetch vendor ratings and comments
+            var ratingsAndComments = await _userService.GetVendorRatingsAndCommentsAsync(vendorId);
+
+            // Prepare the response with vendor details and customer reviews
+            var vendorDetails = new
+            {
+                vendor.VendorName,
+                vendor.VendorDescription,
+                AverageRating = vendor.AverageRating,
+                Ratings = ratingsAndComments.Select(r => new
+                {
+                    r.CustomerId,
+                    r.Rating,
+                    r.Comment,
+                    r.CreatedAt
+                })
+            };
+
+            return Ok(vendorDetails);
+        }
 
 
 

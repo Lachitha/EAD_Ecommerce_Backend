@@ -23,6 +23,7 @@ namespace MongoDbConsoleApp.Models
 
         public int LowStockThreshold { get; set; } // Alert vendor if stock goes below this threshold
 
+        [BsonRepresentation(BsonType.ObjectId)]
         public string VendorId { get; set; } = string.Empty; // Associate product with a vendor
 
         // Embedded ProductCategory object
