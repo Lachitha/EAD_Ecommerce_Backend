@@ -8,7 +8,7 @@ using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Configuration values (ensure these are set in your appsettings.json)
+// Configuration values
 var mongoSettings = builder.Configuration.GetSection("MongoDbSettings");
 var jwtSettings = builder.Configuration.GetSection("JwtSettings");
 var issuer = jwtSettings["Issuer"];
@@ -86,6 +86,10 @@ builder.Services.AddCors(options =>
 // Add controllers (this is necessary for API routing)
 builder.Services.AddControllers();
 
+// Add Swagger generation
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
+
 var app = builder.Build();
 
 // Create a scope to resolve the MongoDbService and call PingAsync
@@ -100,6 +104,14 @@ app.UseCors("AllowAll"); // Use the CORS policy
 
 app.UseAuthentication();
 app.UseAuthorization();
+
+// Enable Swagger UI
+app.UseSwagger();
+app.UseSwaggerUI(c =>
+{
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", "My API V1");
+    c.RoutePrefix = "swagger"; // Set Swagger UI at the app's root
+});
 
 // Map controllers to routes
 app.MapControllers(); // This is essential for your endpoints to be accessible

@@ -41,7 +41,7 @@ namespace MongoDbConsoleApp.Services
             foreach (var item in order.Items)
             {
                 var product = await GetProductByIdAsync(item.ProductId);
-                product.Stock -= item.Quantity;
+                // product.Stock -= item.Quantity;
                 var update = Builders<Product>.Update.Set(p => p.Stock, product.Stock);
                 await _productCollection.UpdateOneAsync(p => p.Id == product.Id, update);
             }
@@ -79,7 +79,13 @@ namespace MongoDbConsoleApp.Services
             {
                 return null; // Order not found
             }
-
+            foreach (var item in order.Items)
+            {
+                var product = await GetProductByIdAsync(item.ProductId);
+                product.Stock += item.Quantity;
+                var update = Builders<Product>.Update.Set(p => p.Stock, product.Stock);
+                await _productCollection.UpdateOneAsync(p => p.Id == product.Id, update);
+            }
             order.Status = OrderStatus.Canceled;
             await UpdateOrderAsync(orderId, order);
             return order;

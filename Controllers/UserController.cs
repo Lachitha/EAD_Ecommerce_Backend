@@ -54,7 +54,8 @@ namespace MongoDbConsoleApp.Controllers
 
                 // Hash the user's password and create the user
                 user.PasswordHash = BCrypt.Net.BCrypt.HashPassword(user.PasswordHash);
-
+                user.IsActive = false;
+                user.IsDeleted = false;
                 // At this point, IsActive is already set to true by default
                 await _userService.CreateUserAsync(user);
 
@@ -103,7 +104,7 @@ namespace MongoDbConsoleApp.Controllers
             }
 
             var existingUser = await _userService.FindByEmailAsync(user.Email);
-            if (existingUser == null || !existingUser.IsActive || !BCrypt.Net.BCrypt.Verify(user.PasswordHash, existingUser.PasswordHash))
+            if (existingUser == null || !existingUser.IsActive || existingUser.IsDeleted || !BCrypt.Net.BCrypt.Verify(user.PasswordHash, existingUser.PasswordHash))
             {
                 return Unauthorized("Invalid credentials.");
             }
@@ -312,7 +313,7 @@ namespace MongoDbConsoleApp.Controllers
             }
 
             // Deactivate the account
-            existingUser.IsActive = false; // Set account status to inactive
+            existingUser.IsDeleted = true; // Set account status to inactive
 
             await _userService.UpdateUserAsync(existingUser);
             return Ok(new { message = "Account deactivated successfully." });
