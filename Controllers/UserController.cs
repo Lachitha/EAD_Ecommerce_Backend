@@ -420,13 +420,20 @@ namespace MongoDbConsoleApp.Controllers
                 vendor.VendorName,
                 vendor.VendorDescription,
                 AverageRating = vendor.AverageRating,
-                Ratings = ratingsAndComments.Select(r => new
-                {
-                    r.CustomerId,
-                    r.Rating,
-                    r.Comment,
-                    r.CreatedAt
-                })
+                Ratings = await Task.WhenAll(ratingsAndComments.Select(async r =>
+        {
+            // Fetch customer details based on CustomerId
+            var customer = await _userService.FindByIdAsync(r.CustomerId);
+            return new
+            {
+                CustomerUsername = customer?.Username,
+                CustomerFirstName = customer?.FirstName,
+                CustomerLastName = customer?.LastName,
+                r.Rating,
+                r.Comment,
+                r.CreatedAt
+            };
+        }))
             };
 
             return Ok(vendorDetails);
