@@ -118,9 +118,23 @@ namespace MongoDbConsoleApp.Controllers
                 return NotFound("No orders found for this user.");
             }
 
+            // For each order, fetch product details (e.g., Product Name)
+            foreach (var order in orders)
+            {
+                foreach (var item in order.Items)
+                {
+                    var product = await _orderService.GetProductByIdAsync(item.ProductId); // Assume this method exists
+                    if (product != null)
+                    {
+                        item.ProductName = product.Name;
+                        item.Description = product.Description;
+                        item.ImageBase64 = product.ImageBase64; // Set product name
+                    }
+                }
+            }
+
             return Ok(orders);
         }
-
         // Get order by ID
         [Authorize(Roles = "Customer,CSR,Administrator,Vendor")]
         [HttpGet("{id}")]
