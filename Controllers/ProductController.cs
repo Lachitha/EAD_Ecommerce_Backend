@@ -347,7 +347,7 @@ namespace MongoDbConsoleApp.Controllers
 
         //     return Ok(productResponse);
         // }
-        [Authorize(Roles = "Administrator,Customer")]
+        [Authorize(Roles = "Administrator,Customer,Vendor")]
         [HttpGet("singleProduct/{id}")]
         public async Task<IActionResult> GetProductByIdAsync(string id)
         {
