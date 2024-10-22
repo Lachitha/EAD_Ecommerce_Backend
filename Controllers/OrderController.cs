@@ -45,6 +45,9 @@ namespace MongoDbConsoleApp.Controllers
                 }
 
                 item.VendorId = product.VendorId; // Assign VendorId from the product
+                item.ProductName = product.Name;  // Add product name
+                item.Description = product.Description; // Add product description
+                item.ImageBase64 = product.ImageBase64;
             }
 
             order.UserId = userId; // Set the user ID

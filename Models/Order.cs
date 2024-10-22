@@ -31,11 +31,11 @@ namespace MongoDbConsoleApp.Models
     public class OrderItem
     {
         public string ProductId { get; set; } = string.Empty;
-        public string ProductName { get; set; }
+        public string? ProductName { get; set; }
 
-        public string Description { get; set; }
+        public string? Description { get; set; }
 
-        public string ImageBase64 { get; set; }
+        public string? ImageBase64 { get; set; }
         public int Quantity { get; set; }
         public decimal Price { get; set; }
         public string? VendorId { get; set; }
