@@ -416,27 +416,27 @@ namespace MongoDbConsoleApp.Controllers
                     vendor.VendorName,
                     vendor.VendorDescription,
                     AverageRating = ratingsAndComments.Any() ? (decimal)ratingsAndComments.Average(r => r.Rating) : 0,
-                    RatingsAndComments = ratingsAndComments.Select(async r =>
+
+                    // Await each task to get the customer details without the task metadata
+                    RatingsAndComments = await Task.WhenAll(ratingsAndComments.Select(async r =>
                     {
                         var customer = await _userService.FindByIdAsync(r.CustomerId);
                         return new
                         {
-                            CustomerUsername = customer?.Username,
                             CustomerFirstName = customer?.FirstName,
                             CustomerLastName = customer?.LastName,
-
-                            r.CustomerId,
                             r.Rating,
                             r.Comment,
                             r.CreatedAt
                         };
-                    }).ToList()
+                    }))
                 },
                 Categories = categories,
                 Image = ConvertImageFromBase64(product.ImageBase64)
             };
-            Console.WriteLine(product.VendorId);
+
             return Ok(productResponse);
+
         }
 
 

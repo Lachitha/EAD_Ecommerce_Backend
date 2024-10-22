@@ -196,6 +196,13 @@ namespace MongoDbConsoleApp.Services
             return await _orderCollection.Find(_ => true).ToListAsync(); // Fetch all orders
         }
 
+        public async Task<List<Order>> FindOrdersByVendorIdAsync(string vendorId)
+        {
+            // Filter orders where at least one item has the specified VendorId
+            return await _orderCollection.Find(order => order.Items.Any(item => item.VendorId == vendorId)).ToListAsync();
+        }
+
+
 
 
     }

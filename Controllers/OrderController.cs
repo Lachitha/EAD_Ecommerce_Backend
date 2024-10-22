@@ -204,6 +204,28 @@ namespace MongoDbConsoleApp.Controllers
             return Ok(orders);
         }
 
+        // Get orders where the vendor's products were sold
+        [Authorize(Roles = "Vendor")]
+        [HttpGet("vendor-orders")]
+        public async Task<IActionResult> GetVendorOrders()
+        {
+            var vendorId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(vendorId))
+            {
+                return Unauthorized("User not authenticated.");
+            }
+
+            // Fetch orders that contain items sold by this vendor
+            var orders = await _orderService.FindOrdersByVendorIdAsync(vendorId);
+            if (orders == null || orders.Count == 0)
+            {
+                return NotFound("No orders found for this vendor.");
+            }
+
+            return Ok(orders);
+        }
+
+
 
     }
 }
