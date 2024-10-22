@@ -416,12 +416,20 @@ namespace MongoDbConsoleApp.Controllers
                     vendor.VendorName,
                     vendor.VendorDescription,
                     AverageRating = ratingsAndComments.Any() ? (decimal)ratingsAndComments.Average(r => r.Rating) : 0,
-                    RatingsAndComments = ratingsAndComments.Select(r => new
+                    RatingsAndComments = ratingsAndComments.Select(async r =>
                     {
-                        r.CustomerId,
-                        r.Rating,
-                        r.Comment,
-                        r.CreatedAt
+                        var customer = await _userService.FindByIdAsync(r.CustomerId);
+                        return new
+                        {
+                            CustomerUsername = customer?.Username,
+                            CustomerFirstName = customer?.FirstName,
+                            CustomerLastName = customer?.LastName,
+
+                            r.CustomerId,
+                            r.Rating,
+                            r.Comment,
+                            r.CreatedAt
+                        };
                     }).ToList()
                 },
                 Categories = categories,
