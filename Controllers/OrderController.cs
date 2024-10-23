@@ -94,7 +94,12 @@ namespace MongoDbConsoleApp.Controllers
             }
 
             await _orderService.NotifyCustomerAsync(canceledOrder.UserId, canceledOrder.CancellationNote);
-
+            var notification = new Notification
+            {
+                UserId = canceledOrder.UserId,
+                Message = $"Your cancellation request for order {canceledOrder.Id} has been approved."
+            };
+            await _notificationService.CreateNotificationAsync(notification);
             return Ok(canceledOrder);
         }
 
@@ -149,6 +154,13 @@ namespace MongoDbConsoleApp.Controllers
             {
                 return NotFound(new { message = "Order or product not found." });
             }
+            var notification = new Notification
+            {
+                UserId = updatedOrder.UserId,
+                Message = $"Your order {updatedOrder.Id} has been partially delivered."
+            };
+            await _notificationService.CreateNotificationAsync(notification);
+
 
             return Ok(updatedOrder);
         }
@@ -163,6 +175,12 @@ namespace MongoDbConsoleApp.Controllers
             {
                 return NotFound(new { message = "Order not found or not eligible for marking as delivered." });
             }
+            var notification = new Notification
+            {
+                UserId = updatedOrder.UserId,
+                Message = $"Your order {updatedOrder.Id} has been fully delivered."
+            };
+            await _notificationService.CreateNotificationAsync(notification);
 
             return Ok(updatedOrder);
         }
