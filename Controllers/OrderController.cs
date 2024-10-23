@@ -13,10 +13,12 @@ namespace MongoDbConsoleApp.Controllers
     public class OrderController : ControllerBase
     {
         private readonly OrderService _orderService;
+        private readonly NotificationService _notificationService;
 
-        public OrderController(OrderService orderService)
+        public OrderController(OrderService orderService, NotificationService notificationService)
         {
             _orderService = orderService;
+            _notificationService = notificationService;
         }
 
         // Create a new order (Customer only)
@@ -41,6 +43,12 @@ namespace MongoDbConsoleApp.Controllers
             try
             {
                 var createdOrder = await _orderService.CreateOrderAsync(order);
+                var notification = new Notification
+                {
+                    UserId = userId,
+                    Message = $"Your order {createdOrder.Id} has been successfully created."
+                };
+                await _notificationService.CreateNotificationAsync(notification);
                 return CreatedAtAction(nameof(GetOrderById), new { orderId = createdOrder.Id }, createdOrder);
             }
             catch (InvalidOperationException ex)

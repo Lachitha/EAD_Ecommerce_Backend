@@ -44,6 +44,7 @@ builder.Services.AddScoped<ProductService>(); // Register ProductService
 builder.Services.AddScoped<OrderService>(); // Register OrderService
 builder.Services.AddScoped<CategoryService>();
 builder.Services.AddScoped<CartService>();
+builder.Services.AddScoped<NotificationService>();
 
 // Register JwtHelper with required parameters
 builder.Services.AddSingleton<JwtHelper>(sp =>
