@@ -41,7 +41,7 @@ namespace MongoDbConsoleApp.Controllers
             try
             {
                 var createdOrder = await _orderService.CreateOrderAsync(order);
-                return CreatedAtAction(nameof(GetOrderById), new { id = createdOrder.Id }, createdOrder);
+                return CreatedAtAction(nameof(GetOrderById), new { orderId = createdOrder.Id }, createdOrder);
             }
             catch (InvalidOperationException ex)
             {
@@ -123,6 +123,7 @@ namespace MongoDbConsoleApp.Controllers
 
             return Ok(order);
         }
+
 
         // Vendor marks product as delivered (orderId and productId in body)
         [Authorize(Roles = "Vendor")]
