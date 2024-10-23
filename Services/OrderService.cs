@@ -202,6 +202,11 @@ namespace MongoDbConsoleApp.Services
             return await _orderCollection.Find(order => order.Items.Any(item => item.VendorId == vendorId)).ToListAsync();
         }
 
+        public async Task<List<Order>> GetCancellationRequestedOrdersAsync()
+        {
+            return await _orderCollection.Find(o => o.Status == OrderStatus.CancellationRequested).ToListAsync();
+        }
+
 
 
 

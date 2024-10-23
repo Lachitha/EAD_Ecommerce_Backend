@@ -192,6 +192,19 @@ namespace MongoDbConsoleApp.Controllers
 
             return Ok(orders);
         }
+
+        [Authorize(Roles = "Administrator")]
+        [HttpGet("cancellation-requests")]
+        public async Task<IActionResult> GetCancellationRequestedOrders()
+        {
+            var orders = await _orderService.GetCancellationRequestedOrdersAsync();
+            if (orders == null || orders.Count == 0)
+            {
+                return NotFound(new { message = "No cancellation requested orders found." });
+            }
+
+            return Ok(orders);
+        }
     }
 
     // Additional models for request bodies
