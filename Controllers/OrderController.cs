@@ -118,7 +118,7 @@ namespace MongoDbConsoleApp.Controllers
             var orders = await _orderService.FindOrdersByUserIdAsync(userId);
             if (orders == null || orders.Count == 0)
             {
-                return NotFound("No orders found for this user.");
+                return NotFound(new { message = "No Orders found." });
             }
 
             // For each order, fetch product details (e.g., Product Name)
@@ -146,7 +146,7 @@ namespace MongoDbConsoleApp.Controllers
             var order = await _orderService.FindOrderByIdAsync(id);
             if (order == null)
             {
-                return NotFound("Order not found.");
+                return NotFound(new { message = "No Orders found." });
             }
 
             return Ok(order);
@@ -171,7 +171,7 @@ namespace MongoDbConsoleApp.Controllers
             var updatedOrder = await _orderService.MarkOrderItemAsDeliveredAsync(orderId, vendorId, productId);
             if (updatedOrder == null)
             {
-                return NotFound("Order or product not found.");
+                return NotFound(new { message = "Order or Products Not found." });
             }
 
             return Ok(updatedOrder);
@@ -185,7 +185,7 @@ namespace MongoDbConsoleApp.Controllers
             var updatedOrder = await _orderService.MarkOrderAsDeliveredByCSRAsync(orderId);
             if (updatedOrder == null)
             {
-                return NotFound("Order not found or not eligible for marking as delivered.");
+                return NotFound(new { message = "Order not found or not eligible for marking as delivered." });
             }
 
             return Ok(updatedOrder);
@@ -198,7 +198,7 @@ namespace MongoDbConsoleApp.Controllers
             var orders = await _orderService.GetAllOrdersAsync();
             if (orders == null || orders.Count == 0)
             {
-                return NotFound("No orders found.");
+                return NotFound(new { message = "No orders found." });
             }
 
             return Ok(orders);
@@ -219,7 +219,7 @@ namespace MongoDbConsoleApp.Controllers
             var orders = await _orderService.FindOrdersByVendorIdAsync(vendorId);
             if (orders == null || orders.Count == 0)
             {
-                return NotFound("No orders found for this vendor.");
+                return NotFound(new { message = "No orders found for this vendor." });
             }
 
             return Ok(orders);

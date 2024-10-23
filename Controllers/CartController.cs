@@ -29,13 +29,13 @@ namespace MongoDbConsoleApp.Controllers
             var userId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value; // Adjust based on your JWT claim type
             if (string.IsNullOrEmpty(userId))
             {
-                return Unauthorized("User ID not found in token.");
+                return Unauthorized(new { message = "User ID not found in token." });
             }
 
             var cart = await _cartService.GetCartByUserId(userId);
             if (cart == null)
             {
-                return NotFound("Cart not found.");
+                return NotFound(new { message = "Cart not found." });
             }
 
             // Create a list to hold product details
