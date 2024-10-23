@@ -59,6 +59,7 @@ namespace MongoDbConsoleApp.Controllers
                 Price = request.Price,
                 Quantity = request.Quantity,
                 Stock = request.Quantity,
+                //LowStockThreshold = request.LowStockThreshold,
                 ImageBase64 = request.ImageBase64,
                 CategoryIds = request.CategoryIds
             };

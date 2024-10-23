@@ -35,22 +35,9 @@ namespace MongoDbConsoleApp.Controllers
                 return Unauthorized("User not authenticated.");
             }
 
-            // Retrieve VendorIds for each product and assign them to the order items
-            foreach (var item in order.Items)
-            {
-                var product = await _orderService.GetProductByIdAsync(item.ProductId); // Assume GetProductByIdAsync fetches a product by its ID
-                if (product == null)
-                {
-                    return NotFound($"Product not found with ID: {item.ProductId}");
-                }
+            // Assign the user ID to the order
+            order.UserId = userId;
 
-                item.VendorId = product.VendorId; // Assign VendorId from the product
-                item.ProductName = product.Name;  // Add product name
-                item.Description = product.Description; // Add product description
-                item.ImageBase64 = product.ImageBase64;
-            }
-
-            order.UserId = userId; // Set the user ID
             try
             {
                 var createdOrder = await _orderService.CreateOrderAsync(order);
@@ -58,21 +45,21 @@ namespace MongoDbConsoleApp.Controllers
             }
             catch (InvalidOperationException ex)
             {
-                return BadRequest(ex.Message); // Return error if product is not available
+                return BadRequest(ex.Message);
             }
         }
 
-        // Request cancellation by customer
+        // Request cancellation by customer (id in body)
         [Authorize(Roles = "Customer")]
-        [HttpPost("request-cancel/{id}")]
-        public async Task<IActionResult> RequestCancelOrder(string id, [FromBody] string cancellationNote)
+        [HttpPost("request-cancel")]
+        public async Task<IActionResult> RequestCancelOrder([FromBody] CancelOrderRequest cancelOrderRequest)
         {
-            if (string.IsNullOrEmpty(cancellationNote))
+            if (string.IsNullOrEmpty(cancelOrderRequest.CancellationNote))
             {
                 return BadRequest("Cancellation note is required.");
             }
 
-            var existingOrder = await _orderService.FindOrderByIdAsync(id);
+            var existingOrder = await _orderService.FindOrderByIdAsync(cancelOrderRequest.OrderId);
             if (existingOrder == null)
             {
                 return NotFound("Order not found.");
@@ -83,22 +70,21 @@ namespace MongoDbConsoleApp.Controllers
                 return BadRequest("Only orders in processing can be requested for cancellation.");
             }
 
-            var updatedOrder = await _orderService.RequestCancelOrderAsync(id, cancellationNote);
+            var updatedOrder = await _orderService.RequestCancelOrderAsync(cancelOrderRequest.OrderId, cancelOrderRequest.CancellationNote);
             return Ok(updatedOrder);
         }
 
-        // Approve cancellation by CSR/Admin
+        // Approve cancellation by CSR/Admin (id in body)
         [Authorize(Roles = "CSR,Administrator")]
-        [HttpPost("approve-cancel/{id}")]
-        public async Task<IActionResult> ApproveCancelOrder(string id)
+        [HttpPost("approve-cancel")]
+        public async Task<IActionResult> ApproveCancelOrder([FromBody] ApproveCancelRequest approveCancelRequest)
         {
-            var canceledOrder = await _orderService.ApproveCancelOrderAsync(id);
+            var canceledOrder = await _orderService.ApproveCancelOrderAsync(approveCancelRequest.OrderId);
             if (canceledOrder == null)
             {
                 return NotFound("Order not found or cannot be canceled.");
             }
 
-            // Notify customer
             await _orderService.NotifyCustomerAsync(canceledOrder.UserId, canceledOrder.CancellationNote);
 
             return Ok(canceledOrder);
@@ -121,68 +107,49 @@ namespace MongoDbConsoleApp.Controllers
                 return NotFound(new { message = "No Orders found." });
             }
 
-            // For each order, fetch product details (e.g., Product Name)
-            foreach (var order in orders)
-            {
-                foreach (var item in order.Items)
-                {
-                    var product = await _orderService.GetProductByIdAsync(item.ProductId); // Assume this method exists
-                    if (product != null)
-                    {
-                        item.ProductName = product.Name;
-                        item.Description = product.Description;
-                        item.ImageBase64 = product.ImageBase64; // Set product name
-                    }
-                }
-            }
-
             return Ok(orders);
         }
-        // Get order by ID
+
+        // Get order by ID (id in body)
         [Authorize(Roles = "Customer,CSR,Administrator,Vendor")]
-        [HttpGet("{id}")]
-        public async Task<IActionResult> GetOrderById(string id)
+        [HttpPost("get-order")]
+        public async Task<IActionResult> GetOrderById([FromBody] GetOrderRequest getOrderRequest)
         {
-            var order = await _orderService.FindOrderByIdAsync(id);
+            var order = await _orderService.FindOrderByIdAsync(getOrderRequest.OrderId);
             if (order == null)
             {
-                return NotFound(new { message = "No Orders found." });
+                return NotFound(new { message = "Order not found." });
             }
 
             return Ok(order);
         }
 
-        // Vendor marks product as delivered
+        // Vendor marks product as delivered (orderId and productId in body)
         [Authorize(Roles = "Vendor")]
-        [HttpPost("mark-product-delivered/{orderId}")]
-        public async Task<IActionResult> MarkProductAsDelivered(string orderId, [FromBody] string productId)
+        [HttpPost("mark-product-delivered")]
+        public async Task<IActionResult> MarkProductAsDelivered([FromBody] MarkProductDeliveredRequest request)
         {
-            if (string.IsNullOrEmpty(productId))
-            {
-                return BadRequest("Product ID must be provided.");
-            }
-
             var vendorId = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
             if (string.IsNullOrEmpty(vendorId))
             {
                 return Unauthorized("User not authenticated.");
             }
 
-            var updatedOrder = await _orderService.MarkOrderItemAsDeliveredAsync(orderId, vendorId, productId);
+            var updatedOrder = await _orderService.MarkOrderItemAsDeliveredAsync(request.OrderId, vendorId, request.ProductId);
             if (updatedOrder == null)
             {
-                return NotFound(new { message = "Order or Products Not found." });
+                return NotFound(new { message = "Order or product not found." });
             }
 
             return Ok(updatedOrder);
         }
 
-        // CSR/Admin marks the entire order as delivered
+        // CSR/Admin marks the entire order as delivered (orderId in body)
         [Authorize(Roles = "CSR,Administrator")]
-        [HttpPost("mark-order-delivered/{orderId}")]
-        public async Task<IActionResult> MarkOrderAsDelivered(string orderId)
+        [HttpPost("mark-order-delivered")]
+        public async Task<IActionResult> MarkOrderAsDelivered([FromBody] MarkOrderDeliveredRequest request)
         {
-            var updatedOrder = await _orderService.MarkOrderAsDeliveredByCSRAsync(orderId);
+            var updatedOrder = await _orderService.MarkOrderAsDeliveredByCSRAsync(request.OrderId);
             if (updatedOrder == null)
             {
                 return NotFound(new { message = "Order not found or not eligible for marking as delivered." });
@@ -191,6 +158,7 @@ namespace MongoDbConsoleApp.Controllers
             return Ok(updatedOrder);
         }
 
+        // Get all orders (for Admin)
         [Authorize(Roles = "Administrator")]
         [HttpGet("all")]
         public async Task<IActionResult> GetAllOrders()
@@ -204,7 +172,7 @@ namespace MongoDbConsoleApp.Controllers
             return Ok(orders);
         }
 
-        // Get orders where the vendor's products were sold
+        // Get vendor's orders (vendorId in claims)
         [Authorize(Roles = "Vendor")]
         [HttpGet("vendor-orders")]
         public async Task<IActionResult> GetVendorOrders()
@@ -215,7 +183,6 @@ namespace MongoDbConsoleApp.Controllers
                 return Unauthorized("User not authenticated.");
             }
 
-            // Fetch orders that contain items sold by this vendor
             var orders = await _orderService.FindOrdersByVendorIdAsync(vendorId);
             if (orders == null || orders.Count == 0)
             {
@@ -224,8 +191,33 @@ namespace MongoDbConsoleApp.Controllers
 
             return Ok(orders);
         }
+    }
 
+    // Additional models for request bodies
+    public class CancelOrderRequest
+    {
+        public string OrderId { get; set; }
+        public string CancellationNote { get; set; }
+    }
 
+    public class ApproveCancelRequest
+    {
+        public string OrderId { get; set; }
+    }
 
+    public class GetOrderRequest
+    {
+        public string OrderId { get; set; }
+    }
+
+    public class MarkProductDeliveredRequest
+    {
+        public string OrderId { get; set; }
+        public string ProductId { get; set; }
+    }
+
+    public class MarkOrderDeliveredRequest
+    {
+        public string OrderId { get; set; }
     }
 }
