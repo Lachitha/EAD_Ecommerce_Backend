@@ -110,12 +110,12 @@ namespace MongoDbConsoleApp.Controllers
             return Ok(orders);
         }
 
-        // Get order by ID (id in body)
+        // Get order by ID (id in URL)
         [Authorize(Roles = "Customer,CSR,Administrator,Vendor")]
-        [HttpPost("get-order")]
-        public async Task<IActionResult> GetOrderById([FromBody] GetOrderRequest getOrderRequest)
+        [HttpGet("{orderId}")]
+        public async Task<IActionResult> GetOrderById(string orderId)
         {
-            var order = await _orderService.FindOrderByIdAsync(getOrderRequest.OrderId);
+            var order = await _orderService.FindOrderByIdAsync(orderId);
             if (order == null)
             {
                 return NotFound(new { message = "Order not found." });
